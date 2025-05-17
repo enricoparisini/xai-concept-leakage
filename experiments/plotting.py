@@ -57,9 +57,11 @@ def plot_intervention_performance(results, policy="random", checkpoint_names=Non
         sns.move_legend(ax, "lower left", bbox_to_anchor=(legend_pos[0], legend_pos[1]), title='Model')
     if y_lim is not None:
         ax.set(ylim=(0, y_lim))
-    ticks, labels = plt.xticks()
+    _, labels = plt.xticks()
     for label in labels:
-        label.set_text(str(int(float(label.get_text().replace("−", "-")))))
+        text = label.get_text().replace("−", "-").strip()
+        if text:  
+            label.set_text(str(int(float(text))))
     plt.xticks(range(n_int))
     plt.tight_layout()
     if title:
@@ -110,8 +112,8 @@ def plot_model_vs_model_scores(results, dl_label = "test", score_labels = ["CTL"
     df = pd.concat(df_list)
     sns.set_context("paper", font_scale=1.7, rc={"font.size":1,"axes.titlesize":1,"axes.labelsize":26, 
                             "legend.fontsize":14, "legend.title_fontsize":15})
-    ax = sns.catplot(x="Score",y = "Value", hue = 'Model', kind='bar', data=df,
-                errorbar=('ci', 95), capsize=0.15, err_kws={'linewidth': 1.5})
+    ax = sns.catplot(x="Score", y="Value", hue="Model", kind="bar", data=df,
+                    errorbar=("ci", 95), capsize=0.07, errwidth=1.5)
     ax.set_axis_labels(x_var="", y_var="")  
     if legend_pos != "auto":
         sns.move_legend(ax, "lower left", bbox_to_anchor=(legend_pos[0], legend_pos[1]), title='Model')
@@ -166,7 +168,7 @@ def plot_hard_scores(results, score_labels = ["CTL", "ICL", "ois"],
     sns.set_context("paper", font_scale=1.7, rc={"font.size":1,"axes.titlesize":1,"axes.labelsize":20, 
                             "legend.fontsize":14, "legend.title_fontsize":16})
     ax = sns.catplot(x="Score",y = "Value", hue = 'Dataset', kind='bar', data=df,
-                errorbar=('ci', 95), capsize=0.15, err_kws={'linewidth': 1.5},
+                    errorbar=("ci", 95), capsize=0.07, errwidth=1.5,
                     aspect=aspect_ratio)  
     ax.set_axis_labels(x_var="", y_var="") 
     if legend_pos != "auto":
@@ -232,7 +234,7 @@ def plot_CEM_scores(results, dl_label = "test", score_labels = ["y_accuracy", "C
     sns.set_context("paper", font_scale=1.3, rc={"font.size":1,"axes.titlesize":1,"axes.labelsize":20, 
                             "legend.fontsize":18, "legend.title_fontsize":18})
     ax = sns.catplot(x="Score",y = "Value", hue = 'Model', kind='bar', data=df,
-                errorbar=('ci', 95), capsize=0.15, err_kws={'linewidth': 1.5}) 
+                    errorbar=("ci", 95), capsize=0.07, errwidth=1.5) 
     ax.set_axis_labels("", "")
     for axis in ax.axes.flat:
         plt.setp(axis.get_xticklabels(), fontsize=axis_label_size)
@@ -251,13 +253,12 @@ def plot_CEM_scores(results, dl_label = "test", score_labels = ["y_accuracy", "C
 
 
 def plot_alignment_leakage(results, checkpoint_names = None, 
-                           obs_label = "CT_MI_alignment", selected_concepts = None,
+                           obs_label = "CT_MI_alignment", 
                            dl_label = 'test', error_bars = True, confidence_level = 1.96, 
                            y_lim = [0., 1.], color = "dodgerblue", 
                            axis_label_size = 14, title_fontsize = 20, aspect_ratio = 1,
                            save_path = None, title = None,
-                           yaxis_title = r"$\widetilde{\,I\,}^{\text{(align)}}$",
-                           relabeled_checkpoint_names = None):  
+                           yaxis_title = r"$\widetilde{\,I\,}^{\text{(align)}}$",):  
     extra_vector_scores = ("MI_pos_c", "MI_neg_c")
     scores_dict = extract_scores_from_results(results, test_dl_label = dl_label, 
                                              score_labels = [obs_label], checkpoint_names = checkpoint_names)

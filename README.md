@@ -11,16 +11,16 @@ This repository includes code adapted from the [cem](https://github.com/mateoesp
 ## Installation
 
 To install and run this package, first clone this repository,
-```
-git clone https://github.com/enricoparisini/xai-concept-leakage
+```bash
+$ git clone https://github.com/enricoparisini/xai-concept-leakage
 ```
 After moving to the directory with `cd xai-concept-leakage`, install the package by running
-```
-python3 -m pip install .
+```bash
+$ python3 -m pip install .
 ```
 Check the installation with
-```
-python3 -c "import xai_concept_leakage"
+```bash
+$ python3 -c "import xai_concept_leakage"
 ```
 You can now safely delete all subfolders in the current directory except for `data/` and `experiments/`.  
 
@@ -34,8 +34,8 @@ You can now safely delete all subfolders in the current directory except for `da
 
 
 **dSprites and 3dshapes**: The vanilla datasets can be downloaded running 
-```
-cd data/ && bash ./download_datasets.sh && cd -
+```bash
+$ cd data/ && bash ./download_datasets.sh && cd -
 ```
 from your local folder. To then generate the concept-annotated datasets with different amounts of ground-truth interconcept correlations, run the scripts `data/generate_dsprites_datasets.py` and `data/generate_shapes3d_datasets.py`.
 
@@ -44,8 +44,8 @@ from your local folder. To then generate the concept-annotated datasets with dif
 ### Model training
 
 Examples of config files to train CBMs and CEMs can be found in `experiments/config/`. You can train models on TabularToy with
-```
-python experiments/run_experiments.py -c experiments/configs/tabulartoy.yaml
+```bash
+$ python experiments/run_experiments.py -c experiments/configs/tabulartoy.yaml
 ```
 and analogously for dSprites and 3dshapes. At the end of each model training, basic evaluation metrics such as concepts, task and random intervention performance are also computed.
 
@@ -55,8 +55,8 @@ and analogously for dSprites and 3dshapes. At the end of each model training, ba
 ### Evaluation and leakage measures
 
 A more thorough evaluation of both performance and interpretability can be carried out using the scripts in `experiments/evaluate_models/`, such as
-```
-python experiments/evaluate_models/evaluate_models_tabulartoy.py
+```bash
+$ python experiments/evaluate_models/evaluate_models_tabulartoy.py
 ```
 The leakage scores and the other evaluation metrics can be assessed and visualised using the functions in `experiments/`. See the examples on TabularToy(0.25) in `Analyse_results_TabularToy.ipynb`.
 
