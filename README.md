@@ -24,7 +24,10 @@ $ python3 -c "import xai_concept_leakage"
 ```
 You can now safely delete all subfolders in the current directory except for `data/` and `experiments/`.  
 
-
+A Docker image that mirrors the latest version of this repository is available:
+```bash
+$ docker pull eparisini/xai-concept-leakage
+```
 
 ## Examples
 
