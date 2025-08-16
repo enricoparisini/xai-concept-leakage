@@ -33,7 +33,12 @@ $ docker pull eparisini/xai-concept-leakage
 
 ### Download and generate the datasets
 
-**TabularToy**: This tabular dataset can be directly generated using the notebook `data/TabularToy_generation.ipynb` .
+**TabularToy**: You can generate this synthetic tabular dataset with the script:
+```bash
+$ python data/generate_tabulartoy_dataset.py 0.25 10000
+```
+Here, `0.25` sets the correlation parameter and `10000` specifies the number of samples.
+The dataset can then be further explored using the notebook `data/TabularToy_generation.ipynb`.
 
 
 **dSprites and 3dshapes**: The vanilla datasets can be downloaded running 
