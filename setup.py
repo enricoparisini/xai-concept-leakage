@@ -19,8 +19,12 @@ setuptools.setup(
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3.11",
     ],
-    python_requires='>=3.7, <3.8',
+    python_requires='>=3.7',
     install_requires=[
         "importlib-metadata>=4.8.2",
         "importlib-resources>=5.4.0",

@@ -93,6 +93,9 @@ import xai_concept_leakage.train.training as training
 import xai_concept_leakage.train.utils as utils
 import experiment_utils
 
+import warnings
+warnings.filterwarnings("ignore", message="pkg_resources is deprecated")
+
 # os.environ["CUDA_LAUNCH_BLOCKING"] = "1"
 
 ################################################################################

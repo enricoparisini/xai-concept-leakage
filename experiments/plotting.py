@@ -1,3 +1,4 @@
+import sys, os
 import numpy as np
 import pandas as pd
 import torch
@@ -7,9 +8,91 @@ import seaborn as sns
 
 from experiments.experiment_utils import extract_scores_from_results
 
+import warnings
+warnings.filterwarnings("ignore", message="pkg_resources is deprecated")
+
 ##################################################################################################
 ### Plot intervention performance and leakage scores:
 ##################################################################################################
+
+def plot_train_val_scores(model_path, plot_losses = False):
+    if os.path.exists(model_path + "_train_x2c_losses.npy"):
+        indep = True
+    else:
+        indep = False
+    plt.title("Task accuracy")
+    train_y_accuracies = np.load(model_path + "_train_y_acc.npy")
+    val_y_accuracies = np.load(model_path + "_val_y_acc.npy")
+    plt.plot(train_y_accuracies)
+    plt.plot(val_y_accuracies)
+    plt.show()
+
+    plt.title("Concept accuracy")
+    train_c_accuracies = np.load(model_path + "_train_c_acc.npy")
+    val_c_accuracies = np.load(model_path + "_val_c_acc.npy")
+    plt.plot(train_c_accuracies)
+    plt.plot(val_c_accuracies)
+    plt.show()
+
+    if plot_losses:
+        if indep:
+            plt.title("x2c loss")
+            train_x2c_losses = np.load(model_path + "_train_x2c_losses.npy")
+            val_x2c_losses = np.load(model_path + "_val_x2c_losses.npy")
+            plt.plot(train_x2c_losses)
+            plt.plot(val_x2c_losses)
+            plt.show()
+
+            plt.title("c2y loss")
+            train_c2y_losses = np.load(model_path + "_train_c2y_losses.npy")
+            val_c2y_losses = np.load(model_path + "_val_c2y_losses.npy")
+            plt.plot(train_c2y_losses)
+            plt.plot(val_c2y_losses)
+            plt.show()
+        else:
+            plt.title("Loss")
+            train_losses = np.load(model_path + "_train_losses.npy")
+            val_losses = np.load(model_path + "_val_losses.npy")
+            plt.plot(train_losses)
+            plt.plot(val_losses)
+            plt.show()
+
+
+def plot_y_c_accuracies(results, dl_label = "test", checkpoint_names = None, y_lim = 1., save_path = None):
+    scores_dict = extract_scores_from_results(results, test_dl_label = dl_label, 
+                                         score_labels = ["y_accuracy", "c_accuracy"], checkpoint_names = checkpoint_names)
+    checkpoint_names = list(scores_dict.keys())
+    fig = plt.figure()
+    df_list = []
+    for acc in ['c_accuracy', 'y_accuracy']:
+        df_temp = pd.DataFrame([])
+        list_model_names = []
+        list_accs = []
+        list_accuracies = []
+        for model_name in checkpoint_names:
+            scores = scores_dict[model_name][acc]
+            if len(scores.reshape(-1,1)) == 1:
+                scores = [scores.item()]
+            else:
+                scores = list(scores)
+            list_accuracies += scores
+            list_model_names += [model_name]*len(scores)
+            list_accs += [acc]*len(scores)
+        df_temp["Model"] = list_model_names  
+        df_temp["Accuracy"] = list_accs
+        df_temp["Value"] = list_accuracies
+        df_list.append(df_temp)
+    df = pd.concat(df_list)
+    ax = sns.catplot(x='Model',y = "Value", hue = 'Accuracy', kind='bar', data=df,
+                errorbar=('ci', 95), capsize=0.15)  
+    if y_lim is not None:
+        ax.set(ylim=(0, y_lim))
+    plt.xticks(rotation=90)
+    if save_path:
+        ax.figure.savefig(save_path + "_acc.pdf", bbox_inches='tight')
+    plt.show()
+
+
 
 def plot_intervention_performance(results, policy="random", checkpoint_names=None, 
                                   palette_name=None, y_lim=None, save_path=None,
@@ -112,8 +195,16 @@ def plot_model_vs_model_scores(results, dl_label = "test", score_labels = ["CTL"
     df = pd.concat(df_list)
     sns.set_context("paper", font_scale=1.7, rc={"font.size":1,"axes.titlesize":1,"axes.labelsize":26, 
                             "legend.fontsize":14, "legend.title_fontsize":15})
-    ax = sns.catplot(x="Score", y="Value", hue="Model", kind="bar", data=df,
-                    errorbar=("ci", 95), capsize=0.07, errwidth=1.5)
+    if sys.version_info < (3, 10):
+        ax = sns.catplot(x="Score", y="Value", hue="Model", kind="bar", data=df,
+                        errorbar=("ci", 95), capsize=0.07, errwidth=1.5)
+    else:
+        ax = sns.catplot(
+            x="Score", y="Value", hue="Model", kind="bar", data=df,
+            errorbar=("ci", 95),
+            capsize=0.13,                      
+            err_kws={"linewidth": 1.5}         
+        )
     ax.set_axis_labels(x_var="", y_var="")  
     if legend_pos != "auto":
         sns.move_legend(ax, "lower left", bbox_to_anchor=(legend_pos[0], legend_pos[1]), title='Model')
@@ -167,9 +258,17 @@ def plot_hard_scores(results, score_labels = ["CTL", "ICL", "ois"],
     df = pd.concat(df_list)
     sns.set_context("paper", font_scale=1.7, rc={"font.size":1,"axes.titlesize":1,"axes.labelsize":20, 
                             "legend.fontsize":14, "legend.title_fontsize":16})
-    ax = sns.catplot(x="Score",y = "Value", hue = 'Dataset', kind='bar', data=df,
-                    errorbar=("ci", 95), capsize=0.07, errwidth=1.5,
-                    aspect=aspect_ratio)  
+
+    if sys.version_info < (3, 10):
+        ax = sns.catplot(x="Score", y="Value", hue="Model", kind="bar", data=df,
+                        errorbar=("ci", 95), capsize=0.07, errwidth=1.5)
+    else:
+        ax = sns.catplot(x="Score",y = "Value", hue = 'Dataset', kind='bar', data=df,
+                errorbar=("ci", 95), 
+                capsize=0.13, 
+                err_kws={"linewidth": 1.5},
+                aspect=aspect_ratio) 
+     
     ax.set_axis_labels(x_var="", y_var="") 
     if legend_pos != "auto":
         sns.move_legend(ax, "lower left", bbox_to_anchor=(legend_pos[0], legend_pos[1]), title='Model')
@@ -233,8 +332,14 @@ def plot_CEM_scores(results, dl_label = "test", score_labels = ["y_accuracy", "C
     df = pd.concat(df_list)
     sns.set_context("paper", font_scale=1.3, rc={"font.size":1,"axes.titlesize":1,"axes.labelsize":20, 
                             "legend.fontsize":18, "legend.title_fontsize":18})
-    ax = sns.catplot(x="Score",y = "Value", hue = 'Model', kind='bar', data=df,
-                    errorbar=("ci", 95), capsize=0.07, errwidth=1.5) 
+    if sys.version_info < (3, 10):
+        ax = sns.catplot(x="Score",y = "Value", hue = 'Model', kind='bar', data=df,
+                        errorbar=("ci", 95), capsize=0.07, errwidth=1.5) 
+    else:
+        ax = sns.catplot(x="Score",y = "Value", hue = 'Model', kind='bar', data=df,
+                        errorbar=("ci", 95), 
+                        capsize=0.13, 
+                        err_kws={"linewidth": 1.5}) 
     ax.set_axis_labels("", "")
     for axis in ax.axes.flat:
         plt.setp(axis.get_xticklabels(), fontsize=axis_label_size)
@@ -337,6 +442,39 @@ def plot_leakage_scores(results, checkpoint_names = None,
 
 
 
+def plot_alignment_leakage(results, checkpoint_names = None, 
+                           obs_label = "CT_MI_alignment", selected_concepts = None,
+                           dl_label = 'test', error_bars = True, confidence_level = 1.96, 
+                           y_lim = [0., 1.], color = "dodgerblue", 
+                           axis_label_size = 14, title_fontsize = 20, aspect_ratio = 1,
+                           save_path = None, title = None,
+                           yaxis_title = r"$\widetilde{\,I\,}^{\text{(align)}}$",
+                           relabeled_checkpoint_names = None):  
+    extra_vector_scores = ("MI_pos_c", "MI_neg_c")
+    scores_dict = extract_scores_from_results(results, test_dl_label = dl_label, 
+                                             score_labels = [obs_label], checkpoint_names = checkpoint_names)
+    plt.figure(figsize=(6, 6*aspect_ratio))
+    checkpoint_names = list(scores_dict.keys())
+    if ("_i" not in obs_label) and (obs_label not in extra_vector_scores):
+        scores_dict_df = {k: [v.mean(), v.std()/np.sqrt(len(v)-1)] for k, v in scores_dict.items()}
+        df = pd.DataFrame(scores_dict_df).T
+        df = df.rename(columns={0: obs_label, 1: obs_label + "_SE"})
+        df[obs_label + "_SE"] = confidence_level * df[obs_label + "_SE"]
+        df.index.name = "model"
+        df = df.reset_index()   
+        ax = sns.barplot(df, x="model", y=obs_label, color=color)
+        if error_bars:
+            ax.errorbar(data=df, x="model", y=obs_label,  yerr=obs_label + "_SE", ls='', color='black', capsize=4)
+        ax.set(title=title, xlabel='', ylabel=yaxis_title)
+    ax.set(ylim=y_lim)
+    ax.set_xticklabels(ax.get_xticklabels(), fontsize=axis_label_size)  # Adjust fontsize as needed
+    if title:
+        suptitle = plt.title(title)
+        fdct = {'color': 'black', 'fontsize': title_fontsize}
+        suptitle.set(**fdct)
+    if save_path:
+        ax.figure.savefig(save_path + "_" + obs_label + ".pdf", bbox_inches='tight')
+    plt.show()
 
 ##################################################################################################
 ### PCA transform of concept vectors and plotting: 
@@ -446,7 +584,8 @@ def plot_pca_based_on_y_sns(c_mix_pca, y_true, i_c = 0, legend_pos = "auto", asp
     df["pca_x"] = c_mix_pca[:, i_c, 0]
     df["pca_y"] = c_mix_pca[:, i_c, 1]
     df["y"] = y_true
-    palette = sns.color_palette(None, len(y_labels)) 
+    n_y_labels = len(np.unique(y_true))
+    palette = sns.color_palette(None, n_y_labels) 
     
     f = plt.figure(figsize=(6*aspect,6))
     sns.set_context("paper", font_scale = font_scale)

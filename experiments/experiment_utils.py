@@ -14,6 +14,9 @@ from collections import defaultdict
 from pathlib import Path
 from prettytable import PrettyTable
 
+import warnings
+warnings.filterwarnings("ignore", message="pkg_resources is deprecated")
+
 
 ################################################################################
 ## TabularToy:

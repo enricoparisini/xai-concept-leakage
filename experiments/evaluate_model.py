@@ -20,8 +20,8 @@ from xai_concept_leakage.metrics.mutual_information import (extract_tril, matrix
 
 from experiments.experiment_utils import (save_joblib, model_type_from_name, wrap_single_array)
 
-
-
+import warnings
+warnings.filterwarnings("ignore", message="pkg_resources is deprecated")
 
 ##################################################################################################
 ### Predict concepts and task labels:
