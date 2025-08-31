@@ -18,7 +18,10 @@ import xai_concept_leakage.metrics.oracle as oracle
 import xai_concept_leakage.train.utils as utils
 
 from xai_concept_leakage.metrics.cas import concept_alignment_score
-from xai_concept_leakage.models.construction import (load_trained_model, external_load_model_trainer)
+from xai_concept_leakage.models.construction import (
+    load_trained_model,
+    external_load_model_trainer,
+)
 
 
 def representation_avg_task_pred(
@@ -31,44 +34,45 @@ def representation_avg_task_pred(
     n_samples, n_concepts, concept_emb_dims = c_embs_train.shape
     n_classes = len(np.unique(y_train))
     predictor_train_kwags = predictor_train_kwags or {
-        'epochs': 100,
-        'batch_size': min(512, n_samples),
-        'verbose': 0,
+        "epochs": 100,
+        "batch_size": min(512, n_samples),
+        "verbose": 0,
     }
     accs = []
     for concept_idx in tqdm(range(n_concepts)):
-        classifier = tf.keras.models.Sequential([
-            tf.keras.layers.Dense(
-                32,
-                activation='relu',
-                name="predictor_fc_1",
-            ),
-            tf.keras.layers.Dense(
-                n_classes if n_classes > 2 else 1,
-                # We will merge the activation into the loss for numerical
-                # stability
-                activation=None,
-                name="predictor_fc_out",
-            ),
-        ])
+        classifier = tf.keras.models.Sequential(
+            [
+                tf.keras.layers.Dense(
+                    32,
+                    activation="relu",
+                    name="predictor_fc_1",
+                ),
+                tf.keras.layers.Dense(
+                    n_classes if n_classes > 2 else 1,
+                    # We will merge the activation into the loss for numerical
+                    # stability
+                    activation=None,
+                    name="predictor_fc_out",
+                ),
+            ]
+        )
 
         loss = (
-            tf.keras.losses.SparseCategoricalCrossentropy(
-                from_logits=True
-            ) if n_classes > 2 else
-            tf.keras.losses.BinaryCrossentropy(
+            tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
+            if n_classes > 2
+            else tf.keras.losses.BinaryCrossentropy(
                 from_logits=True,
             )
         )
         classifier.compile(
             # Use ADAM optimizer by default
-            optimizer='adam',
+            optimizer="adam",
             # Note: we assume labels come without a one-hot-encoding in the
             #       case when the concepts are categorical.
             loss=loss,
         )
         classifier.fit(
-            c_embs_train[:,concept_idx,:],
+            c_embs_train[:, concept_idx, :],
             y_train,
             **predictor_train_kwags,
         )
@@ -76,7 +80,7 @@ def representation_avg_task_pred(
         if n_classes > 2:
             accs.append(accuracy_score(y_test, np.argmax(y_test_pred, axis=-1)))
         else:
-            accs.append(accuracy_score(y_test, expit(y_test_pred) >=0.5))
+            accs.append(accuracy_score(y_test, expit(y_test_pred) >= 0.5))
     return np.mean(accs)
 
 
@@ -96,10 +100,10 @@ def evaluate_representation_metrics(
     rerun=False,
     seed=None,
     old_results=None,
-    test_subsampling=1, ####
-    alternative_loading = False,
-    model_path = None,
-    x2c_extractor = None,
+    test_subsampling=1,  ####
+    alternative_loading=False,
+    model_path=None,
+    x2c_extractor=None,
 ):
     result_dict = {}
     if config.get("rerun_repr_evaluation", False):
@@ -107,8 +111,8 @@ def evaluate_representation_metrics(
     if config.get("skip_repr_evaluation", False):
         return {}
     test_subsampling = config.get(
-        'test_repr_subsampling',
-        config.get('test_subsampling', test_subsampling),
+        "test_repr_subsampling",
+        config.get("test_subsampling", test_subsampling),
     )
     if seed is not None:
         seed_everything(seed)
@@ -132,9 +136,9 @@ def evaluate_representation_metrics(
     # Now include the competence that we will assume
     # for all concepts
     if test_subsampling not in [None, 0, 1]:
-        #np.random.seed(42)
+        # np.random.seed(42)
         indices = np.random.permutation(x_test.shape[0])[
-            :int(np.ceil(x_test.shape[0]*test_subsampling))
+            : int(np.ceil(x_test.shape[0] * test_subsampling))
         ]
         x_test = x_test[indices]
         c_test = c_test[indices]
@@ -150,10 +154,11 @@ def evaluate_representation_metrics(
         )
 
     if alternative_loading and (train_dl is not None):
-        cbm, trainer = external_load_model_trainer(train_dl,
-                        model_path, 
-                        x2c_extractor,
-                        )
+        cbm, trainer = external_load_model_trainer(
+            train_dl,
+            model_path,
+            x2c_extractor,
+        )
     else:
         cbm = load_trained_model(
             config=config,
@@ -179,23 +184,19 @@ def evaluate_representation_metrics(
         list(map(lambda x: x[1].detach().cpu().numpy(), batch_results)),
         axis=0,
     )
-    if config.get('extra_dims', 0) != 0:
+    if config.get("extra_dims", 0) != 0:
         # Then we will only use the extra dims as the embedding as those
         # correspond to the learnt embeddings only
-        c_pred = c_pred[:, -config.get('extra_dims', 0):]
+        c_pred = c_pred[:, -config.get("extra_dims", 0) :]
 
     c_pred = np.reshape(c_pred, (c_test.shape[0], n_concepts, -1))
 
     oracle_matrix = None
     if config.get("run_ois", True):
-        ois_key = f'test_ois'
+        ois_key = f"test_ois"
         logging.info(f"Computing OIS score...")
-        if os.path.exists(
-            os.path.join(result_dir, f'oracle_matrix.npy')
-        ):
-            oracle_matrix = np.load(
-                os.path.join(result_dir, f'oracle_matrix.npy')
-            )
+        if os.path.exists(os.path.join(result_dir, f"oracle_matrix.npy")):
+            oracle_matrix = np.load(os.path.join(result_dir, f"oracle_matrix.npy"))
         ois, loaded = utils.execute_and_save(
             fun=utils.load_call,
             kwargs=dict(
@@ -208,9 +209,9 @@ def evaluate_representation_metrics(
                     c_soft=np.transpose(c_pred, (0, 2, 1)),
                     c_true=c_test,
                     predictor_train_kwags={
-                        'epochs': config.get("ois_epochs", 50),
-                        'batch_size': min(2048, c_test.shape[0]),
-                        'verbose': 0,
+                        "epochs": config.get("ois_epochs", 50),
+                        "batch_size": min(2048, c_test.shape[0]),
+                        "verbose": 0,
                     },
                     test_size=0.2,
                     oracle_matrix=oracle_matrix,
@@ -219,7 +220,7 @@ def evaluate_representation_metrics(
                 ),
             ),
             result_dir=result_dir,
-            filename=f'{ois_key}_{run_name}_split_{split}.joblib',
+            filename=f"{ois_key}_{run_name}_split_{split}.joblib",
             rerun=rerun,
         )
         if isinstance(ois, (tuple, list)):
@@ -228,21 +229,18 @@ def evaluate_representation_metrics(
             else:
                 ois = ois[0]
         logging.info(f"\tDone....OIS score is {ois*100:.2f}%")
-        if (oracle_matrix is not None) and (not os.path.exists(
-            os.path.join(result_dir, f'oracle_matrix.npy')
-        )):
+        if (oracle_matrix is not None) and (
+            not os.path.exists(os.path.join(result_dir, f"oracle_matrix.npy"))
+        ):
             np.save(
-                os.path.join(result_dir, f'oracle_matrix.npy'),
+                os.path.join(result_dir, f"oracle_matrix.npy"),
                 oracle_matrix,
             )
         result_dict[ois_key] = ois
 
-
     # Then let's try and see how predictive each representation is of the
     # downstream task
-    if train_dl is not None and (
-        config.get("run_repr_avg_pred", False)
-    ):
+    if train_dl is not None and (config.get("run_repr_avg_pred", False)):
         x_train, y_train, c_train = [], [], []
         for ds_data in train_dl:
             if len(ds_data) == 2:
@@ -271,10 +269,7 @@ def evaluate_representation_metrics(
 
         train_batch_results = trainer.predict(cbm, used_train_dl)
         c_pred_train = np.concatenate(
-            list(map(
-                lambda x: x[1].detach().cpu().numpy(),
-                train_batch_results
-            )),
+            list(map(lambda x: x[1].detach().cpu().numpy(), train_batch_results)),
             axis=0,
         )
 
@@ -283,10 +278,8 @@ def evaluate_representation_metrics(
             (c_pred_train.shape[0], n_concepts, -1),
         )
 
-        repr_task_pred_key = f'test_repr_task_pred'
-        logging.info(
-            f"Computing avg task predictibility from learnt concept reprs..."
-        )
+        repr_task_pred_key = f"test_repr_task_pred"
+        logging.info(f"Computing avg task predictibility from learnt concept reprs...")
         repr_task_pred, loaded = utils.execute_and_save(
             fun=utils.load_call,
             kwargs=dict(
@@ -303,20 +296,20 @@ def evaluate_representation_metrics(
                 ),
             ),
             result_dir=result_dir,
-            filename=f'{repr_task_pred_key}_{run_name}_split_{split}.joblib',
+            filename=f"{repr_task_pred_key}_{run_name}_split_{split}.joblib",
             rerun=rerun,
         )
-        logging.info(
-            f"\tDone....average repr_task_pred is {repr_task_pred*100:.2f}%"
-        )
+        logging.info(f"\tDone....average repr_task_pred is {repr_task_pred*100:.2f}%")
 
-        result_dict.update({
-            repr_task_pred_key: repr_task_pred,
-        })
+        result_dict.update(
+            {
+                repr_task_pred_key: repr_task_pred,
+            }
+        )
 
     if config.get("run_nis", True):
         # Niche impurity score now
-        nis_key = f'test_nis'
+        nis_key = f"test_nis"
         logging.info(f"Computing NIS score...")
         nis, loaded = utils.execute_and_save(
             fun=utils.load_call,
@@ -333,7 +326,7 @@ def evaluate_representation_metrics(
                 ),
             ),
             result_dir=result_dir,
-            filename=f'{nis_key}_{run_name}_split_{split}.joblib',
+            filename=f"{nis_key}_{run_name}_split_{split}.joblib",
             rerun=rerun,
         )
         if isinstance(nis, (tuple, list)):
@@ -343,10 +336,8 @@ def evaluate_representation_metrics(
         result_dict[nis_key] = nis
 
     if config.get("run_cas", True):
-        cas_key = f'test_cas'
-        logging.info(
-            f"Computing entire representation CAS score..."
-        )
+        cas_key = f"test_cas"
+        logging.info(f"Computing entire representation CAS score...")
         cas, _ = utils.execute_and_save(
             fun=utils.load_call,
             kwargs=dict(
@@ -359,11 +350,11 @@ def evaluate_representation_metrics(
                     c_vec=c_pred,
                     c_test=c_test,
                     y_test=y_test,
-                    step=config.get('cas_step', 50),
+                    step=config.get("cas_step", 50),
                 ),
             ),
             result_dir=result_dir,
-            filename=f'{cas_key}_{run_name}_split_{split}.joblib',
+            filename=f"{cas_key}_{run_name}_split_{split}.joblib",
             rerun=rerun,
         )
         if isinstance(cas, (tuple, list)):

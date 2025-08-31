@@ -10,11 +10,11 @@ setuptools.setup(
     author_email="eparisini@turing.ac.uk",
     description="Leakage scores",
     long_description=long_description,
-    license='MIT',
+    license="MIT",
     long_description_content_type="text/markdown",
     url="https://github.com/enricoparisini/xai-concept-leakage",
     packages=setuptools.find_packages(),
-        classifiers=[
+    classifiers=[
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
         "Programming Language :: Python :: 3",
@@ -24,7 +24,7 @@ setuptools.setup(
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
     ],
-    python_requires='>=3.7',
+    python_requires=">=3.7",
     install_requires=[
         "importlib-metadata>=4.8.2",
         "importlib-resources>=5.4.0",
@@ -52,4 +52,7 @@ setuptools.setup(
         "tensorflow-datasets>=4.8.0",
         "tensorflow-metadata>=1.12.0",
     ],
+    extras_require={
+        "dev": ["black", "pre-commit"],
+    },
 )

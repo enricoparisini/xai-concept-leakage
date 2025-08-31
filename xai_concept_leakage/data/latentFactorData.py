@@ -1,6 +1,7 @@
-'''
+"""
 Adapted from https://github.com/mateoespinosa/concept-quality
-'''
+"""
+
 import tensorflow as tf
 import numpy as np
 from sklearn.model_selection import train_test_split
@@ -10,6 +11,7 @@ class LatentFactorData(object):
     """
     Abstract class for datasets with known ground truth factors
     """
+
     def __init__(
         self,
         dataset_path,
@@ -56,7 +58,7 @@ class LatentFactorData(object):
                 return_inverse=True,
             )
             self.cid_new_to_old.append(
-                {i : unique_vals[i] for i in range(len(unique_vals))}
+                {i: unique_vals[i] for i in range(len(unique_vals))}
             )
             c_data[:, i] = unique_inds
 
@@ -93,9 +95,11 @@ class LatentFactorData(object):
 #                   Task definition utility functions
 # ===========================================================================
 
+
 def built_task_fn(label_fn, filter_fn=None):
     def task_fn(x_data, c_data):
         return get_task_data(x_data, c_data, label_fn, filter_fn=filter_fn)
+
     return task_fn
 
 
@@ -110,6 +114,3 @@ def get_task_data(x_data, c_data, label_fn, filter_fn=None):
     y_data = np.array([label_fn(c) for c in c_data])
 
     return x_data, c_data, y_data
-
-
-

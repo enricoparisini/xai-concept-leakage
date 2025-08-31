@@ -20,7 +20,9 @@ from xai_concept_leakage.interventions.random import IndependentRandomMaskIntPol
 from xai_concept_leakage.interventions.uncertainty import UncertaintyMaximizerPolicy
 from xai_concept_leakage.interventions.coop import CooP
 from xai_concept_leakage.interventions.optimal import GreedyOptimal
-from xai_concept_leakage.interventions.behavioural_learning import BehavioralLearningPolicy
+from xai_concept_leakage.interventions.behavioural_learning import (
+    BehavioralLearningPolicy,
+)
 from xai_concept_leakage.interventions.global_policies import (
     GlobalValidationPolicy,
     GlobalValidationImprovementPolicy,
@@ -37,7 +39,7 @@ DEFAULT_POLICIES = [
     dict(
         policy="random",
         use_prior=True,  # This will use IntCEM's learnt prior intervention
-                         # policy to sample next interventions
+        # policy to sample next interventions
         group_level=True,
     ),
     dict(
@@ -82,15 +84,16 @@ DEFAULT_POLICIES = [
 ## CONCEPT INTERVENTION SELECTION POLICIES
 ################################################################################
 
+
 class InterventionPolicyWrapper(object):
 
     def __init__(
-            self,
-            policy_fn,
-            concept_group_map,
-            num_groups_intervened=0,
-            include_prior=True,
-        ):
+        self,
+        policy_fn,
+        concept_group_map,
+        num_groups_intervened=0,
+        include_prior=True,
+    ):
         self.policy_fn = policy_fn
         self.num_groups_intervened = num_groups_intervened
         self.concept_group_map = concept_group_map
@@ -118,6 +121,7 @@ class AllInterventionPolicy(object):
     def __init__(self, value=None, include_prior=True):
         self.value = value
         self.num_groups_intervened = 1
+
     def __call__(
         self,
         x,
@@ -133,45 +137,51 @@ class AllInterventionPolicy(object):
         mask = np.ones(c.shape, dtype=np.int32)
         return mask, c
 
+
 def concepts_from_competencies(
-        c,
-        competencies,
-        use_concept_groups=False,
-        concept_map=None,
-        assume_mutually_exclusive=False,
-    ):
+    c,
+    competencies,
+    use_concept_groups=False,
+    concept_map=None,
+    assume_mutually_exclusive=False,
+):
     if concept_map is None:
-        concept_map = {i : [i] for i in range(c.shape[-1])}
+        concept_map = {i: [i] for i in range(c.shape[-1])}
 
     if use_concept_groups:
         # Then we will have to generate one-hot labels for concept groups
         # one concept at a time
         c_updated = c.clone()
         for batch_idx in range(c.shape[0]):
-            for group_idx, (_, group_concepts) in enumerate(
-                concept_map.items()
-            ):
+            for group_idx, (_, group_concepts) in enumerate(concept_map.items()):
                 if assume_mutually_exclusive:
                     group_size = len(group_concepts)
                     wrong_concept_probs = (
-                        (1 - competencies[batch_idx, group_idx]) / (
-                            group_size - 1
-                        )
-                    ) if group_size > 1 else 1 - competencies[batch_idx, group_idx]
+                        ((1 - competencies[batch_idx, group_idx]) / (group_size - 1))
+                        if group_size > 1
+                        else 1 - competencies[batch_idx, group_idx]
+                    )
                     sample_probs = [
-                        competencies[batch_idx, group_idx]
-                        if c[batch_idx, concept_idx] == 1 else
-                        wrong_concept_probs for concept_idx in group_concepts
+                        (
+                            competencies[batch_idx, group_idx]
+                            if c[batch_idx, concept_idx] == 1
+                            else wrong_concept_probs
+                        )
+                        for concept_idx in group_concepts
                     ]
                     selected = np.random.choice(
                         list(range(group_size)),
                         replace=False,
                         p=sample_probs,
                     )
-                    selected_group_label = torch.nn.functional.one_hot(
-                        torch.LongTensor([selected]),
-                        num_classes=group_size,
-                    ).type(c_updated.type()).to(c_updated.device)
+                    selected_group_label = (
+                        torch.nn.functional.one_hot(
+                            torch.LongTensor([selected]),
+                            num_classes=group_size,
+                        )
+                        .type(c_updated.type())
+                        .to(c_updated.device)
+                    )
                     c_updated[batch_idx, group_concepts] = selected_group_label
                 else:
                     # This would all be easy to do if concepts within a group
@@ -181,9 +191,11 @@ def concepts_from_competencies(
                     # competence of an entire group is the same of its
                     # constituent concepts.
                     sample_probs = [
-                        competencies[batch_idx, group_idx]
-                        if c[batch_idx, concept_idx] == 1 else
-                        1 - competencies[batch_idx, group_idx]
+                        (
+                            competencies[batch_idx, group_idx]
+                            if c[batch_idx, concept_idx] == 1
+                            else 1 - competencies[batch_idx, group_idx]
+                        )
                         for concept_idx in group_concepts
                     ]
                     c_updated[batch_idx, group_concepts] = torch.bernoulli(
@@ -204,15 +216,11 @@ def concepts_from_competencies(
     else:
         # Else we assume we are given binary competencies
         if isinstance(competencies, np.ndarray):
-            competencies = torch.Tensor(competencies).to(c.device).type(
-                c.type()
-            )
+            competencies = torch.Tensor(competencies).to(c.device).type(c.type())
         correctly_selected = torch.bernoulli(competencies).to(c.device)
-        c_updated = (
-            c * correctly_selected +
-            (1 - c) * (1 - correctly_selected)
-        )
+        c_updated = c * correctly_selected + (1 - c) * (1 - correctly_selected)
     return c_updated.type(torch.FloatTensor).to(c.device)
+
 
 def _default_competence_generator(
     x,
@@ -231,9 +239,11 @@ def _random_uniform_competence(
 ):
     return np.random.uniform(low=0.5, high=1.0, size=c.shape)
 
+
 ################################################################################
 ## MAIN INTERVENTION FUNCTION
 ################################################################################
+
 
 def adversarial_intervene_in_cbm(
     config,
@@ -268,6 +278,7 @@ def adversarial_intervene_in_cbm(
         concept_group_map,
     ):
         return np.zeros(c.shape)
+
     return intervene_in_cbm(
         run_name=run_name,
         config=config,
@@ -293,8 +304,9 @@ def adversarial_intervene_in_cbm(
         x_test=x_test,
         y_test=y_test,
         c_test=c_test,
-        seed=None, #seed,
+        seed=None,  # seed,
     )
+
 
 def intervene_in_cbm(
     config,
@@ -324,9 +336,9 @@ def intervene_in_cbm(
     y_test=None,
     c_test=None,
     seed=None,
-    external_loader = False,
+    external_loader=False,
 ):
-    run_name = run_name or config.get('run_name', config['architecture'])
+    run_name = run_name or config.get("run_name", config["architecture"])
     if real_competence_generator is None:
         real_competence_generator = lambda x: x
     if seed is not None:
@@ -341,9 +353,7 @@ def intervene_in_cbm(
     intervention_accs = []
     # If no concept groups are given, then we assume that all concepts
     # represent a unitary group themselves
-    concept_group_map = concept_group_map or dict(
-        [(i, [i]) for i in range(n_concepts)]
-    )
+    concept_group_map = concept_group_map or dict([(i, [i]) for i in range(n_concepts)])
     groups = intervened_groups or list(range(0, len(concept_group_map) + 1, 1))
 
     if (not rerun) and key_name:
@@ -386,7 +396,7 @@ def intervene_in_cbm(
         train_dl=train_dl,
         output_latent=True,
         output_interventions=True,
-        external_loader = external_loader,
+        external_loader=external_loader,
     )
     construct_time = time.time()
     if isinstance(policy_params, Callable):
@@ -403,12 +413,8 @@ def intervene_in_cbm(
 
     # Now include the competence that we will assume
     # for all concepts
-    if (
-        (x_test is None) or
-        (y_test is None) or
-        (c_test is None)
-    ):
-        if hasattr(test_dl.dataset, 'tensors'):
+    if (x_test is None) or (y_test is None) or (c_test is None):
+        if hasattr(test_dl.dataset, "tensors"):
             x_test, y_test, c_test = test_dl.dataset.tensors
         else:
             x_test, y_test, c_test = [], [], []
@@ -423,18 +429,12 @@ def intervene_in_cbm(
                 x_test.append(x)
                 y_test.append(y)
                 c_test.append(c)
-            x_test = torch.FloatTensor(
-                np.concatenate(x_test, axis=0)
-            ).type(x_type)
-            y_test = torch.FloatTensor(
-                np.concatenate(y_test, axis=0)
-            ).type(y_type)
-            c_test = torch.FloatTensor(
-                np.concatenate(c_test, axis=0)
-            ).type(c_type)
-    #np.random.seed(42)
+            x_test = torch.FloatTensor(np.concatenate(x_test, axis=0)).type(x_type)
+            y_test = torch.FloatTensor(np.concatenate(y_test, axis=0)).type(y_type)
+            c_test = torch.FloatTensor(np.concatenate(c_test, axis=0)).type(c_type)
+    # np.random.seed(42)
     indices = np.random.permutation(x_test.shape[0])[
-        :int(np.ceil(x_test.shape[0]*test_subsampling))
+        : int(np.ceil(x_test.shape[0] * test_subsampling))
     ]
     x_test = x_test[indices]
     c_test = c_test[indices]
@@ -474,8 +474,7 @@ def intervene_in_cbm(
             f"{len(concept_group_map)} concept groups"
         )
         logging.debug(
-            f"\tFor split {split} with "
-            f"{num_groups_intervened} groups intervened"
+            f"\tFor split {split} with " f"{num_groups_intervened} groups intervened"
         )
 
         ####
@@ -504,11 +503,10 @@ def intervene_in_cbm(
                     model,
                     test_dl,
                 )
-        coeff = (num_groups_intervened - prev_num_groups_intervened)
+        coeff = num_groups_intervened - prev_num_groups_intervened
         avg_times.append(
-            (time.time() - start_time)/(
-                x_test.shape[0] * (coeff if coeff != 0 else 1)
-            )
+            (time.time() - start_time)
+            / (x_test.shape[0] * (coeff if coeff != 0 else 1))
         )
         y_pred = np.concatenate(
             list(map(lambda x: x[2].detach().cpu().numpy(), test_batch_results)),
@@ -536,7 +534,7 @@ def intervene_in_cbm(
                 f = io.StringIO()
                 with redirect_stdout(f):
                     [test_results] = trainer.test(model, test_dl)
-            acc = test_results['test_y_auc']
+            acc = test_results["test_y_auc"]
             logging.debug(
                 f"\tTest AUC when intervening with {num_groups_intervened} "
                 f"concept groups is {acc * 100:.2f}% (accuracy "
@@ -588,6 +586,7 @@ def intervene_in_cbm(
 ## CooP Fine-tuning
 ##########################
 
+
 def fine_tune_coop(
     config,
     coop_variant,
@@ -616,7 +615,7 @@ def fine_tune_coop(
     include_prior=False,
     seed=None,
 ):
-    run_name = run_name or config.get('run_name', config['architecture'])
+    run_name = run_name or config.get("run_name", config["architecture"])
     if int(os.environ.get("NO_COOP_FINETUNE", "0")):
         return {
             "concept_entropy_weight": 1,
@@ -658,9 +657,7 @@ def fine_tune_coop(
     intervention_accs = []
     # If no concept groups are given, then we assume that all concepts
     # represent a unitary group themselves
-    concept_group_map = concept_group_map or dict(
-        [(i, [i]) for i in range(n_concepts)]
-    )
+    concept_group_map = concept_group_map or dict([(i, [i]) for i in range(n_concepts)])
     groups = intervened_groups or list(range(0, len(concept_group_map) + 1, 1))
 
     trainer = pl.Trainer(
@@ -688,15 +685,17 @@ def fine_tune_coop(
             for gamma in acquisition_weights:
                 # Now time to compute the accuracy of intervening on
                 # the validation set on a bunch of concepts!
-                if gamma == 0 and (beta != 0) and (
-                    alpha/beta in np.array(list(seen_ratios))
+                if (
+                    gamma == 0
+                    and (beta != 0)
+                    and (alpha / beta in np.array(list(seen_ratios)))
                 ):
                     # Then let's skip it as there is no point checking
                     # this as the ratio between alpha and beta have
                     # already been explored
                     continue
                 if beta != 0:
-                    seen_ratios.add(alpha/beta)
+                    seen_ratios.add(alpha / beta)
 
                 intervention_accs = []
                 used_params = {
@@ -728,7 +727,7 @@ def fine_tune_coop(
                             val_dl,
                             verbose=False,
                         )
-                    intervention_accs.append(test_results['test_y_accuracy'])
+                    intervention_accs.append(test_results["test_y_accuracy"])
                 print("\tValidation accuracies are:", intervention_accs)
                 grid_search_results.append((used_params, intervention_accs))
 
@@ -760,6 +759,7 @@ def fine_tune_coop(
         )
         joblib.dump(grid_search_results, grid_search_results_file)
     return best_params
+
 
 def generate_policy_training_data(
     config,
@@ -836,7 +836,7 @@ def generate_policy_training_data(
         list(map(lambda x: x[1], batch_results)),
         axis=0,
     )
-    if (val_dl is not None):
+    if val_dl is not None:
         val_c_aucs = np.zeros((n_concepts,))
         val_batch_results = trainer.predict(cbm, val_dl)
         c_sem = np.concatenate(
@@ -852,9 +852,8 @@ def generate_policy_training_data(
             val_c_true.append(c)
         val_c_true = np.concatenate(val_c_true, axis=0)
         for concept_idx in range(n_concepts):
-            if (
-                (len(np.unique(val_c_true[:, concept_idx] >= 0.5)) == 1) or
-                (len(np.unique(c_sem[:, concept_idx] >= 0.5)) == 1)
+            if (len(np.unique(val_c_true[:, concept_idx] >= 0.5)) == 1) or (
+                len(np.unique(c_sem[:, concept_idx] >= 0.5)) == 1
             ):
                 val_c_aucs[concept_idx] = sklearn.metrics.accuracy_score(
                     val_c_true[:, concept_idx] >= 0.5,
@@ -875,7 +874,7 @@ def generate_policy_training_data(
         c_pred,
         y_pred,
         ground_truth_embs,
-        val_c_aucs
+        val_c_aucs,
     )
 
 
@@ -886,7 +885,7 @@ def get_int_policy(
     config,
     run_name,
     acquisition_costs=None,
-    result_dir='results/interventions/',
+    result_dir="results/interventions/",
     tune_params=True,
     concept_group_map=None,
     intervened_groups=None,
@@ -900,13 +899,13 @@ def get_int_policy(
     devices="auto",
     intervention_batch_size=1024,
 ):
-    intervention_config = config.get('intervention_config', {})
+    intervention_config = config.get("intervention_config", {})
     intervention_batch_size = intervention_config.get(
         "intervention_batch_size",
         int(os.environ.get(f"INT_BATCH_SIZE", intervention_batch_size)),
     )
-    og_policy_name = policy_args['policy']
-    policy_name = policy_args['policy'].lower()
+    og_policy_name = policy_args["policy"]
+    policy_name = policy_args["policy"].lower()
 
     if policy_name == "random":
         concept_selection_policy = IndependentRandomMaskIntPolicy
@@ -932,29 +931,29 @@ def get_int_policy(
         rerun=rerun,
     ):
         policy_params = {}
-        policy_params["include_prior"] = policy_args.get('use_prior', False)
+        policy_params["include_prior"] = policy_args.get("use_prior", False)
         if policy_name == "random":
             policy_params["group_based"] = policy_args.get(
-                'group_level',
+                "group_level",
                 True,
             )
         elif policy_name == "global_val_improvement":
-            policy_params['n_concepts'] = n_concepts
-            policy_params['val_ds'] = val_dl
+            policy_params["n_concepts"] = n_concepts
+            policy_params["val_ds"] = val_dl
             policy_params["group_based"] = policy_args.get(
-                'group_level',
+                "group_level",
                 True,
             )
         elif policy_name == "uncertainty":
             policy_params["eps"] = policy_args.get("eps", 1e-8)
             policy_params["group_based"] = policy_args.get(
-                'group_level',
+                "group_level",
                 True,
             )
-        elif policy_name ==  "global_val_error":
+        elif policy_name == "global_val_error":
             policy_params["eps"] = policy_args.get("eps", 1e-8)
             policy_params["group_based"] = policy_args.get(
-                'group_level',
+                "group_level",
                 True,
             )
             _, _, _, _, _, _, _, val_c_aucs = generate_policy_training_data(
@@ -970,7 +969,7 @@ def get_int_policy(
                 rerun=rerun,
                 accelerator=accelerator,
                 devices=devices,
-                seed=None, #(42 + split),
+                seed=None,  # (42 + split),
             )
             policy_params["val_c_aucs"] = val_c_aucs
         elif policy_name == "coop":
@@ -990,30 +989,32 @@ def get_int_policy(
             policy_params["n_tasks"] = n_tasks
             policy_params["eps"] = policy_args.get("eps", 1e-8)
             policy_params["group_based"] = policy_args.get(
-                'group_level',
+                "group_level",
                 True,
             )
 
             # Then also run our hyperparameter search using the validation data,
             # if given
             if tune_params and (val_dl is not None):
-                key_name = f'coop'
+                key_name = f"coop"
                 if concept_group_map is None:
-                    concept_group_map = dict(
-                        [(i, [i]) for i in range(n_concepts)]
-                    )
+                    concept_group_map = dict([(i, [i]) for i in range(n_concepts)])
                 if intervened_groups is None:
                     # Then intervene on 1% 5% 25% 50% of all concepts
                     if policy_params["group_based"]:
-                        intervened_groups = set([
-                            int(np.ceil(p * len(concept_group_map)))
-                            for p in [0.01, 0.05, 0.25, 0.5]
-                        ])
+                        intervened_groups = set(
+                            [
+                                int(np.ceil(p * len(concept_group_map)))
+                                for p in [0.01, 0.05, 0.25, 0.5]
+                            ]
+                        )
                     else:
-                        intervened_groups = set([
-                            int(np.ceil(p * n_concepts))
-                            for p in [0.01, 0.05, 0.25, 0.5]
-                        ])
+                        intervened_groups = set(
+                            [
+                                int(np.ceil(p * n_concepts))
+                                for p in [0.01, 0.05, 0.25, 0.5]
+                            ]
+                        )
                     # We do this to avoid running the same twice if, say,
                     # 1% of the groups and 5% of the groups gives use the
                     # same whole number once the ceiling is applied
@@ -1031,15 +1032,15 @@ def get_int_policy(
                     intervened_groups=intervened_groups,
                     concept_group_map=concept_group_map,
                     concept_entropy_weight_range=policy_args.get(
-                        'concept_entropy_weight_range',
+                        "concept_entropy_weight_range",
                         None,
                     ),
                     importance_weight_range=policy_args.get(
-                        'importance_weight_range',
+                        "importance_weight_range",
                         None,
                     ),
                     acquisition_weight_range=policy_args.get(
-                        'acquisition_weight_range',
+                        "acquisition_weight_range",
                         None,
                     ),
                     acquisition_costs=acquisition_costs,
@@ -1050,7 +1051,7 @@ def get_int_policy(
                     coop_variant=concept_selection_policy,
                     rerun=rerun,
                     batch_size=intervention_batch_size,
-                    seed=None,#(42 + split),
+                    seed=None,  # (42 + split),
                     include_prior=policy_params["include_prior"],
                 )
                 print("Best params found for", policy_name, "are:")
@@ -1061,30 +1062,31 @@ def get_int_policy(
             policy_params["n_tasks"] = n_tasks
             policy_params["n_concepts"] = n_concepts
             policy_params["group_based"] = policy_args.get(
-                'group_level',
+                "group_level",
                 True,
             )
-            x_train, y_train, c_train, _, _, _, _, _ = \
-                generate_policy_training_data(
-                    n_concepts=n_concepts,
-                    n_tasks=n_tasks,
-                    split=split,
-                    imbalance=imbalance,
-                    task_class_weights=task_class_weights,
-                    train_dl=train_dl,
-                    val_dl=val_dl,
-                    result_dir=result_dir,
-                    config=config,
-                    rerun=rerun,
-                    accelerator=accelerator,
-                    devices=devices,
-                    seed=None, #(42 + split),
-                )
+            x_train, y_train, c_train, _, _, _, _, _ = generate_policy_training_data(
+                n_concepts=n_concepts,
+                n_tasks=n_tasks,
+                split=split,
+                imbalance=imbalance,
+                task_class_weights=task_class_weights,
+                train_dl=train_dl,
+                val_dl=val_dl,
+                result_dir=result_dir,
+                config=config,
+                rerun=rerun,
+                accelerator=accelerator,
+                devices=devices,
+                seed=None,  # (42 + split),
+            )
             policy_params["x_train"] = x_train
             policy_params["y_train"] = y_train
             policy_params["c_train"] = c_train
             policy_params["emb_size"] = (
-                config["emb_size"] if config["architecture"] in [
+                config["emb_size"]
+                if config["architecture"]
+                in [
                     "CEM",
                     "ConceptEmbeddingModel",
                     "IntAwareConceptEmbeddingModel",
@@ -1093,16 +1095,16 @@ def get_int_policy(
                 else 1
             )
             policy_params["result_dir"] = result_dir
-            policy_params["batch_size"] = policy_args.get('batch_size', 512)
+            policy_params["batch_size"] = policy_args.get("batch_size", 512)
             policy_params["dataset_size"] = policy_args.get(
-                'bc_dataset_size',
+                "bc_dataset_size",
                 5000,
             )
             policy_params["train_epochs"] = policy_args.get(
-                'bc_train_epochs',
+                "bc_train_epochs",
                 100,
             )
-            policy_params["seed"] = None #policy_args.get('seed', 42) + split
+            policy_params["seed"] = None  # policy_args.get('seed', 42) + split
             policy_params["full_run_name"] = f"{run_name}_fold_{split + 1}"
             policy_params["rerun"] = rerun
 
@@ -1118,13 +1120,14 @@ def get_int_policy(
             )
             policy_params["n_tasks"] = n_tasks
             policy_params["group_based"] = policy_args.get(
-                'group_level',
+                "group_level",
                 True,
             )
         else:
             raise ValueError(f'Unsupported policy name "{og_policy_name}"')
 
         return policy_params
+
     return _params_fn, concept_selection_policy
 
 
@@ -1136,31 +1139,28 @@ def _rerun_policy(
     run_name,
 ):
     if split is not None:
-        full_run_name = (
-            f"{run_name}_fold_{split + 1}"
-        )
+        full_run_name = f"{run_name}_fold_{split + 1}"
     else:
         full_run_name = run_name
     if rerun:
         return True
     if config.get(
-        'rerun_interventions',
-        os.environ.get(f"RERUN_INTERVENTIONS", "0") == "1"
+        "rerun_interventions", os.environ.get(f"RERUN_INTERVENTIONS", "0") == "1"
     ):
         return True
     if (key_policy_name.lower().startswith("coop")) and (
         config.get(
-        'rerun_coop_tuning',
-        (os.environ.get(f"RERUN_COOP_TUNING", "0") == "1"),
-    )
+            "rerun_coop_tuning",
+            (os.environ.get(f"RERUN_COOP_TUNING", "0") == "1"),
+        )
     ):
         return True
     if config.get(
-        f'rerun_intervention_{key_policy_name}',
-        os.environ.get(f"RERUN_INTERVENTION_{key_policy_name.upper()}", "0") == "1"
+        f"rerun_intervention_{key_policy_name}",
+        os.environ.get(f"RERUN_INTERVENTION_{key_policy_name.upper()}", "0") == "1",
     ):
         rerun_list = config.get(
-            'rerun_intervention_models',
+            "rerun_intervention_models",
             os.environ.get(f"RERUN_INTERVENTION_MODELS", ""),
         )
         if rerun_list and isinstance(rerun_list, str):
@@ -1174,6 +1174,7 @@ def _rerun_policy(
             if model_to_rerun in full_run_name:
                 return True
     return False
+
 
 def test_interventions(
     run_name,
@@ -1201,11 +1202,11 @@ def test_interventions(
     rerun=False,
     old_results=None,
     task_class_weights=None,
-    external_loader = False,
+    external_loader=False,
 ):
-    intervention_config = config.get('intervention_config', {})
+    intervention_config = config.get("intervention_config", {})
     used_policies = intervention_config.get(
-        'intervention_policies',
+        "intervention_policies",
         DEFAULT_POLICIES,
     )
     intervention_batch_size = intervention_config.get(
@@ -1213,7 +1214,7 @@ def test_interventions(
         int(os.environ.get(f"INT_BATCH_SIZE", intervention_batch_size)),
     )
     results = {}
-    if hasattr(test_dl.dataset, 'tensors'):
+    if hasattr(test_dl.dataset, "tensors"):
         x_test, y_test, c_test = test_dl.dataset.tensors
     else:
         x_test, y_test, c_test = [], [], []
@@ -1228,18 +1229,12 @@ def test_interventions(
             x_test.append(x)
             y_test.append(y)
             c_test.append(c)
-        x_test = torch.FloatTensor(
-            np.concatenate(x_test, axis=0)
-        ).type(x_type)
-        y_test = torch.FloatTensor(
-            np.concatenate(y_test, axis=0)
-        ).type(y_type)
-        c_test = torch.FloatTensor(
-            np.concatenate(c_test, axis=0)
-        ).type(c_type)
-
+        x_test = torch.FloatTensor(np.concatenate(x_test, axis=0)).type(x_type)
+        y_test = torch.FloatTensor(np.concatenate(y_test, axis=0)).type(y_type)
+        c_test = torch.FloatTensor(np.concatenate(c_test, axis=0)).type(c_type)
 
     for competence_level in competence_levels:
+
         def competence_generator(
             x,
             y,
@@ -1265,11 +1260,11 @@ def test_interventions(
                             batch_group_level_competencies[
                                 batch_idx,
                                 group_idx,
-                            ] = np.random.uniform(1/len(concept_members), 1)
+                            ] = np.random.uniform(1 / len(concept_members), 1)
                 else:
-                    batch_group_level_competencies = np.ones(
-                        (c.shape[0], len(concept_group_map))
-                    ) * competence_level
+                    batch_group_level_competencies = (
+                        np.ones((c.shape[0], len(concept_group_map))) * competence_level
+                    )
                 return batch_group_level_competencies
 
             if competence_level == "unif":
@@ -1288,20 +1283,24 @@ def test_interventions(
             currently_used_policies = used_policies
         else:
             currently_used_policies = intervention_config.get(
-                'incompetence_intervention_policies',
+                "incompetence_intervention_policies",
                 used_policies,
             )
         for policy_args in currently_used_policies:
-            key_policy_name = policy_args["policy"] + "_" + "_".join([
-                f'{key}_{policy_args[key]}'
-                for key in sorted(policy_args.keys())
-                if key != 'policy'
-            ])
+            key_policy_name = (
+                policy_args["policy"]
+                + "_"
+                + "_".join(
+                    [
+                        f"{key}_{policy_args[key]}"
+                        for key in sorted(policy_args.keys())
+                        if key != "policy"
+                    ]
+                )
+            )
             if (
-                os.environ.get(
-                    f"IGNORE_INTERVENTION_{key_policy_name.upper()}",
-                    "0"
-                ) == "1"
+                os.environ.get(f"IGNORE_INTERVENTION_{key_policy_name.upper()}", "0")
+                == "1"
             ):
                 continue
             policy_params_fn, concept_selection_policy = get_int_policy(
@@ -1312,10 +1311,10 @@ def test_interventions(
                 acquisition_costs=acquisition_costs,
                 run_name=run_name,
                 result_dir=result_dir,
-                tune_params=intervention_config.get('tune_params', True),
+                tune_params=intervention_config.get("tune_params", True),
                 concept_group_map=concept_map,
                 intervened_groups=intervention_config.get(
-                    'tune_intervened_groups',
+                    "tune_intervened_groups",
                     None,
                 ),
                 val_dl=val_dl,
@@ -1338,42 +1337,38 @@ def test_interventions(
                 f"competence {competence_level}"
             )
             if competence_level == 1:
-                key = f'test_acc_y_{key_policy_name}_ints'
-                int_time_key = f'avg_int_time_{key_policy_name}_ints'
-                construction_times_key = (
-                    f'construction_time_{key_policy_name}_ints'
-                )
+                key = f"test_acc_y_{key_policy_name}_ints"
+                int_time_key = f"avg_int_time_{key_policy_name}_ints"
+                construction_times_key = f"construction_time_{key_policy_name}_ints"
             else:
-                extra_suffix = (
-                    ("_"  + extra_suffix) if extra_suffix else extra_suffix
-                )
+                extra_suffix = ("_" + extra_suffix) if extra_suffix else extra_suffix
                 if group_level_competencies:
                     key = (
-                        f'test_acc_y_{key_policy_name}_ints_co_{competence_level}'
-                        f'_gl{extra_suffix}'
+                        f"test_acc_y_{key_policy_name}_ints_co_{competence_level}"
+                        f"_gl{extra_suffix}"
                     )
                     int_time_key = (
-                        f'avg_int_time_{key_policy_name}_ints_co_{competence_level}'
-                        f'_gl{extra_suffix}'
+                        f"avg_int_time_{key_policy_name}_ints_co_{competence_level}"
+                        f"_gl{extra_suffix}"
                     )
                     construction_times_key = (
-                        f'construction_time_{key_policy_name}_ints_'
-                        f'co_{competence_level}_gl_{extra_suffix}'
+                        f"construction_time_{key_policy_name}_ints_"
+                        f"co_{competence_level}_gl_{extra_suffix}"
                     )
                 else:
                     key = (
-                        f'test_acc_y_{key_policy_name}_ints_co_{competence_level}'
-                        f'{extra_suffix}'
+                        f"test_acc_y_{key_policy_name}_ints_co_{competence_level}"
+                        f"{extra_suffix}"
                     )
                     int_time_key = (
-                        f'avg_int_time_{key_policy_name}_ints_co_{competence_level}'
-                        f'{extra_suffix}'
+                        f"avg_int_time_{key_policy_name}_ints_co_{competence_level}"
+                        f"{extra_suffix}"
                     )
                     construction_times_key = (
-                        f'construction_time_{key_policy_name}_ints_co_{competence_level}'
-                        f'{extra_suffix}'
+                        f"construction_time_{key_policy_name}_ints_co_{competence_level}"
+                        f"{extra_suffix}"
                     )
-            dataset_config = config['dataset_config']
+            dataset_config = config["dataset_config"]
             (int_results, avg_time, constr_time), loaded = load_call(
                 function=intervene_in_cbm,
                 keys=(key, int_time_key, construction_times_key),
@@ -1417,10 +1412,10 @@ def test_interventions(
                     x_test=x_test,
                     y_test=y_test,
                     c_test=c_test,
-                    test_subsampling=dataset_config.get('test_subsampling', 1),
-                    seed=None, #(42 + split),
+                    test_subsampling=dataset_config.get("test_subsampling", 1),
+                    seed=None,  # (42 + split),
                     task_class_weights=task_class_weights,
-                    external_loader = external_loader,
+                    external_loader=external_loader,
                 ),
             )
             results[key] = int_results

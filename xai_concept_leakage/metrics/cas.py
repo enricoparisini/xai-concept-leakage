@@ -8,6 +8,7 @@ from tqdm import tqdm
 
 warnings.simplefilter("ignore", UserWarning)
 
+
 def concept_alignment_score(
     c_vec,
     c_test,
@@ -70,10 +71,12 @@ def concept_alignment_score(
             kmedoids = KMedoids(n_clusters=nc, random_state=0)
             if c_vec.shape[1] != c_test.shape[1]:
                 c_cluster_labels = kmedoids.fit_predict(
-                    np.hstack([
-                        c_vec[:, concept_id][:, np.newaxis],
-                        c_vec[:, c_test.shape[1]:]
-                    ])
+                    np.hstack(
+                        [
+                            c_vec[:, concept_id][:, np.newaxis],
+                            c_vec[:, c_test.shape[1] :],
+                        ]
+                    )
                 )
             elif c_vec.shape[1] == c_test.shape[1] and len(c_vec.shape) == 2:
                 c_cluster_labels = kmedoids.fit_predict(
@@ -86,9 +89,7 @@ def concept_alignment_score(
             concept_homogeneity.append(
                 homogeneity_score(c_test[:, concept_id], c_cluster_labels)
             )
-            task_homogeneity.append(
-                homogeneity_score(y_test, c_cluster_labels)
-            )
+            task_homogeneity.append(homogeneity_score(y_test, c_cluster_labels))
 
         # compute the area under the curve
         concept_auc.append(np.trapz(np.array(concept_homogeneity)) / max_auc)
@@ -100,4 +101,3 @@ def concept_alignment_score(
     if force_alignment:
         return concept_auc, task_auc, alignment
     return concept_auc, task_auc
-

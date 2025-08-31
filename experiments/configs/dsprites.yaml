@@ -1,5 +1,5 @@
 trials: 5
-results_dir: results/dsprites_dep_0_models/ 
+results_dir: results/dsprites_dep_0_models/
 
 shared_params:
   # Dataset Configuration
@@ -10,7 +10,7 @@ shared_params:
     root_dir: data/dsprites/dsprites_dep_0.npz # this is where you find the pre-sampled dataset
     sampling_percent: 1
     test_subsampling: 1
-    
+
 
   # Intervention evaluation
   intervention_config:
@@ -26,13 +26,13 @@ shared_params:
   skip_repr_evaluation: True #Set to False to compute OIS, NIS and CAS
   max_epochs: 200
   concept_loss_weight: 1
-  learning_rate: 0.001 
+  learning_rate: 0.001
   bool: False
   sigmoidal_prob: False
   dropout_prob: 0.
-  
-  learning_rate_c2y: 0.001 
-  optimizer_c2y: adam 
+
+  learning_rate_c2y: 0.001
+  optimizer_c2y: adam
   c2y_max_epochs: 10
   c2y_layers: [64, 64]
   linear_c2y: False
@@ -53,10 +53,10 @@ shared_params:
   early_stopping_monitor: val_loss
   early_stopping_mode: min
   early_stopping_delta: 0.0
-  check_val_every_n_epoch: 1 
-  momentum: 0.9  
+  check_val_every_n_epoch: 1
+  momentum: 0.9
 
-  
+
 
 runs:
 # HARD:
@@ -65,7 +65,7 @@ runs:
     #   bool: True
     #   extra_dims: 0
     #   sigmoidal_extra_capacity: False
-    #   sigmoidal_prob: True    
+    #   sigmoidal_prob: True
 
  # SOFT:
     - architecture: 'ConceptBottleneckModel'
@@ -84,10 +84,10 @@ runs:
     #   sigmoidal_prob: False
     #   concept_loss_weight: 1.
 
-# CEMs: 
+# CEMs:
     # - architecture: 'ConceptEmbeddingModel'
     #   run_name: "CEM_10_pint025_emb16"
     #   sigmoidal_prob: True
     #   training_intervention_prob: 0.25
     #   embedding_activation: "leakyrelu"
-    #   concept_loss_weight: 10   
+    #   concept_loss_weight: 10

@@ -2,6 +2,7 @@ import numpy as np
 import torch
 from xai_concept_leakage.interventions.intervention_policy import InterventionPolicy
 
+
 class UncertaintyMaximizerPolicy(InterventionPolicy):
     # Intervenes first on concepts with the highest uncertainty (measured by their
     # predicted distribution's entropy)
@@ -63,9 +64,7 @@ class UncertaintyMaximizerPolicy(InterventionPolicy):
                     group_names.append(key)
                 # Sort them out
                 best_group_scores = np.argsort(-group_scores, axis=-1)
-                for selected_group in (
-                    best_group_scores[: self.num_groups_intervened]
-                ):
+                for selected_group in best_group_scores[: self.num_groups_intervened]:
                     mask[
                         sample_idx,
                         self.concept_group_map[group_names[selected_group]],
@@ -78,5 +77,3 @@ class UncertaintyMaximizerPolicy(InterventionPolicy):
                     best_concepts[sample_idx, : self.num_groups_intervened],
                 ] = 1
         return mask, c
-
-

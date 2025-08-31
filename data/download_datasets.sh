@@ -3,7 +3,7 @@ set -e
 
 # Note: code partially-adapted from the
 #       'https://github.com/google-research/disentanglement_lib' repo
-#       and taken from the 'https://github.com/mateoespinosa/concept-quality' repo 
+#       and taken from the 'https://github.com/mateoespinosa/concept-quality' repo
 
 
 echo "Downloading dSprites dataset."

@@ -1,5 +1,6 @@
 from .coop import CooP
 
+
 class GreedyOptimal(CooP):
     def __init__(
         self,
@@ -13,7 +14,7 @@ class GreedyOptimal(CooP):
         group_based=True,
         eps=1e-8,
         include_prior=True,
-        **kwargs
+        **kwargs,
     ):
         CooP.__init__(
             self,

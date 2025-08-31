@@ -1,6 +1,7 @@
-'''
+"""
 Adapted from https://github.com/mateoespinosa/concept-quality
-'''
+"""
+
 import itertools
 import numpy as np
 import h5py
@@ -13,12 +14,12 @@ from .latentFactorData import LatentFactorData, get_task_data
 
 
 CONCEPT_NAMES = [
-    'floor_hue',
-    'wall_hue',
-    'object_hue',
-    'scale',
-    'shape',
-    'orientation',
+    "floor_hue",
+    "wall_hue",
+    "object_hue",
+    "scale",
+    "shape",
+    "orientation",
 ]
 CONCEPT_N_VALUES = [
     10,
@@ -34,16 +35,17 @@ CONCEPT_N_VALUES = [
 ## DATASET LOADER
 ################################################################################
 
+
 class shapes3D(LatentFactorData):
 
     def __init__(
         self,
         dataset_path,
-        task='shape_full',
+        task="shape_full",
         train_size=0.85,
         random_state=None,
     ):
-        '''
+        """
         :param dataset_path:  path to the .npz shapes3D file
         :param Or[
             str,
@@ -56,14 +58,14 @@ class shapes3D(LatentFactorData):
             respectively, and produces a tuple of three np.ndarrays
             (x_data, c_data, y_data) corresponding to the task's
             samples, ground truth concept values, and labels, respectively.
-        '''
+        """
 
         if isinstance(task, str):
             if task not in SHAPES3D_TASKS:
                 raise ValueError(
-                    f'If the given task is a string, then it is expected to be '
-                    f'the name of a pre-defined task in '
-                    f'{list(SHAPES3D_TASKS.keys())}. However, we were given '
+                    f"If the given task is a string, then it is expected to be "
+                    f"the name of a pre-defined task in "
+                    f"{list(SHAPES3D_TASKS.keys())}. However, we were given "
                     f'"{task}" which is not a known task.'
                 )
             task_fn = SHAPES3D_TASKS[task]
@@ -85,9 +87,8 @@ class shapes3D(LatentFactorData):
         latent_size_lists = [list(np.arange(i)) for i in CONCEPT_N_VALUES]
         c_data = np.array(list(itertools.product(*latent_size_lists)))
         # Load image data
-        with h5py.File(self.dataset_path, 'r') as hf:
-            x_data = np.array(hf.get('images')) / 255.
-
+        with h5py.File(self.dataset_path, "r") as hf:
+            x_data = np.array(hf.get("images")) / 255.0
 
         return x_data, c_data
 
@@ -96,10 +97,11 @@ class shapes3D(LatentFactorData):
 # TASK DEFINITIONS
 ################################################################################
 
+
 def small_skip_ranges_filter_fn(concept):
-    '''
+    """
     Filter out certain values only
-    '''
+    """
     ranges = [
         list(range(0, 10, 2)),
         list(range(0, 10, 2)),
@@ -174,9 +176,7 @@ def get_reduced_shapes3d(x_data, c_data):
 ################################################################################
 
 SHAPES3D_TASKS = {
-    "reduced_shapes3d" : get_reduced_shapes3d,
-    "shape_full" : get_shape_full,
-    "shape_small_skip" : get_shape_small_skip,
+    "reduced_shapes3d": get_reduced_shapes3d,
+    "shape_full": get_shape_full,
+    "shape_small_skip": get_shape_small_skip,
 }
-
-

@@ -4,26 +4,21 @@ import argparse
 
 from xai_concept_leakage.data.tabulartoy_auxiliary import generate_tabulartoy_data
 
+
 def main():
-    parser = argparse.ArgumentParser(
-        description="Generate and save TabularToy data."
-    )
+    parser = argparse.ArgumentParser(description="Generate and save TabularToy data.")
+    parser.add_argument("delta", type=float, help="Delta parameter (e.g. 0.25).")
     parser.add_argument(
-        "delta",
-        type=float,
-        help="Delta parameter (e.g. 0.25)."
-    )
-    parser.add_argument(
-        "n_samples",
-        type=int,
-        help="Total number of samples to generate (e.g. 10000)."
+        "n_samples", type=int, help="Total number of samples to generate (e.g. 10000)."
     )
     parser.add_argument(
         "--save-folder",
         type=str,
         default=None,
-        help=("Optional output folder. If omitted, it will be constructed as "
-              "data/TabularToy/tabulartoy_{int(delta*100)}_{int(n_samples//1000)}k/")
+        help=(
+            "Optional output folder. If omitted, it will be constructed as "
+            "data/TabularToy/tabulartoy_{int(delta*100)}_{int(n_samples//1000)}k/"
+        ),
     )
     args = parser.parse_args()
 
@@ -38,7 +33,7 @@ def main():
         save_folder = os.path.join(
             data_folder,
             "TabularToy",
-            f"tabulartoy_{int(args.delta * 100)}_{int(args.n_samples // 1000)}k/"
+            f"tabulartoy_{int(args.delta * 100)}_{int(args.n_samples // 1000)}k/",
         )
     else:
         save_folder = args.save_folder
@@ -46,12 +41,15 @@ def main():
     # Ensure directory exists
     os.makedirs(save_folder, exist_ok=True)
 
-    (x_train, x_val, x_test,
-     c_train, c_val, c_test,
-     y_train, y_val, y_test) = generate_tabulartoy_data(args.delta, args.n_samples, save_folder)
+    (x_train, x_val, x_test, c_train, c_val, c_test, y_train, y_val, y_test) = (
+        generate_tabulartoy_data(args.delta, args.n_samples, save_folder)
+    )
 
-    print(f"Generated TabularToy data with delta={args.delta}, n_samples={args.n_samples}")
+    print(
+        f"Generated TabularToy data with delta={args.delta}, n_samples={args.n_samples}"
+    )
     print(f"Saved to: {save_folder}")
+
 
 if __name__ == "__main__":
     main()

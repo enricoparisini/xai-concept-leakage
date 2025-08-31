@@ -31,7 +31,7 @@ RUN pip install --upgrade pip setuptools wheel
 # cd to home
 WORKDIR /home/xai-concept-leakage
 
-# copy the rest of the source and install it 
+# copy the rest of the source and install it
 COPY . .
 RUN python -m pip install --no-cache-dir .
 
@@ -40,10 +40,3 @@ WORKDIR /home
 
 # default command for container
 CMD ["/bin/bash"]
-
-
-
-
-
-
-

@@ -5,6 +5,7 @@ from contextlib import redirect_stdout
 import pytorch_lightning as pl
 from xai_concept_leakage.interventions.intervention_policy import InterventionPolicy
 
+
 class ConstantMaskPolicy(InterventionPolicy):
     def __init__(
         self,
@@ -31,13 +32,17 @@ class ConstantMaskPolicy(InterventionPolicy):
         prev_interventions=None,
         prior_distribution=None,
     ):
-        return torch.tile(
-            torch.unsqueeze(
-                torch.FloatTensor(self.mask).to(c.device),
-                0,
+        return (
+            torch.tile(
+                torch.unsqueeze(
+                    torch.FloatTensor(self.mask).to(c.device),
+                    0,
+                ),
+                (c.shape[0], 1),
             ),
-            (c.shape[0], 1),
-        ), c
+            c,
+        )
+
 
 class GlobalValidationPolicy(InterventionPolicy):
     # Intervenes first on concepts with the highest uncertainty (measured by
@@ -115,21 +120,18 @@ class GlobalValidationPolicy(InterventionPolicy):
                     group_names.append(key)
                 # Sort them out
                 best_group_scores = np.argsort(-group_scores, axis=-1)
-                for selected_group in (
-                    best_group_scores[: self.num_groups_intervened]
-                ):
+                for selected_group in best_group_scores[: self.num_groups_intervened]:
                     mask[
-                        sample_idx,
-                        self.concept_group_map[group_names[selected_group]]
+                        sample_idx, self.concept_group_map[group_names[selected_group]]
                     ] = 1
 
             else:
                 # Else, previous interventions do not affect future ones
                 mask[
-                    sample_idx,
-                    best_concepts[sample_idx, : self.num_groups_intervened]
+                    sample_idx, best_concepts[sample_idx, : self.num_groups_intervened]
                 ] = 1
         return mask, c
+
 
 class GlobalValidationImprovementPolicy(GlobalValidationPolicy):
     # Intervenes first on concepts with the highest uncertainty (measured by

@@ -37,13 +37,13 @@ def inject_uncertainty(
                     if mixing:
                         possible_options_pos = x[
                             c[:, j] == 1,
-                            j//num_operands,
+                            j // num_operands,
                             :,
                             :,
                         ]
                         possible_options_neg = x[
                             c[:, j] == 0,
-                            j//num_operands,
+                            j // num_operands,
                             :,
                             :,
                         ]
@@ -58,16 +58,15 @@ def inject_uncertainty(
                                     0,
                                     possible_options_neg.shape[0],
                                 )
-                                x_new[i,j//num_operands,:,:]  = (
-                                    x_new[i,j//num_operands,:,:] * c_new[i, j] +
-                                    (
-                                        (1 - c_new[i, j]) *
-                                        possible_options_neg[
-                                            selected_mix,
-                                            :,
-                                            :,
-                                        ].numpy()
-                                    )
+                                x_new[i, j // num_operands, :, :] = x_new[
+                                    i, j // num_operands, :, :
+                                ] * c_new[i, j] + (
+                                    (1 - c_new[i, j])
+                                    * possible_options_neg[
+                                        selected_mix,
+                                        :,
+                                        :,
+                                    ].numpy()
                                 )
                         else:
                             c_new[i, j] = np.random.uniform(
@@ -79,9 +78,11 @@ def inject_uncertainty(
                                     0,
                                     possible_options_pos.shape[0],
                                 )
-                                x_new[i,j//num_operands,:,:]  = (
-                                    x_new[i,j//num_operands,:,:] * (1 - c_new[i, j]) +
-                                    c_new[i, j] * possible_options_pos[selected_mix, :, :].numpy()
+                                x_new[i, j // num_operands, :, :] = (
+                                    x_new[i, j // num_operands, :, :]
+                                    * (1 - c_new[i, j])
+                                    + c_new[i, j]
+                                    * possible_options_pos[selected_mix, :, :].numpy()
                                 )
                         if threshold:
                             c_new[i, j] = int(c_new[i, j] >= 0.5)
@@ -101,6 +102,7 @@ def inject_uncertainty(
         )
     return results
 
+
 def produce_addition_set(
     X,
     y,
@@ -108,10 +110,10 @@ def produce_addition_set(
     num_operands=2,
     selected_digits=list(range(10)),
     output_channels=1,
-    img_format='channels_first',
+    img_format="channels_first",
     sample_concepts=None,
     normalize_samples=True,
-    concat_dim='channels',
+    concat_dim="channels",
     even_concepts=False,
     even_labels=False,
     threshold_labels=None,
@@ -159,16 +161,16 @@ def produce_addition_set(
         ):
             img_idx = np.random.choice(total_samples.shape[0])
             selected.append(total_labels[img_idx])
-            img = total_samples[img_idx: img_idx + 1, :, :, :].copy()
+            img = total_samples[img_idx : img_idx + 1, :, :, :].copy()
             if len(operand_digits) > 2:
                 if even_concepts:
-                    concept_vals = np.array([[
-                        int((remap[total_labels[img_idx]] % 2) == 0)
-                    ]])
+                    concept_vals = np.array(
+                        [[int((remap[total_labels[img_idx]] % 2) == 0)]]
+                    )
                 else:
                     concept_vals = torch.nn.functional.one_hot(
                         torch.LongTensor([remap[total_labels[img_idx]]]),
-                        num_classes=len(operand_digits)
+                        num_classes=len(operand_digits),
                     ).numpy()
                 concepts.append(concept_vals)
             else:
@@ -176,18 +178,16 @@ def produce_addition_set(
                 # us to train models that do not have mutually exclusive
                 # concepts!)
                 if even_concepts:
-                    concepts.append(np.array([[
-                        int((total_labels[img_idx] % 2) == 0)
-                    ]]))
+                    concepts.append(np.array([[int((total_labels[img_idx] % 2) == 0)]]))
                 else:
                     max_bound = np.max(operand_digits)
                     val = int(total_labels[img_idx] == max_bound)
                     concepts.append(np.array([[val]]))
             sample_label += total_labels[img_idx]
             operands.append(img)
-        if concat_dim == 'channels':
+        if concat_dim == "channels":
             sum_train_samples.append(np.concatenate(operands, axis=3))
-        elif concat_dim == 'x':
+        elif concat_dim == "x":
             sum_train_samples.append(np.concatenate(operands, axis=2))
         else:
             sum_train_samples.append(np.concatenate(operands, axis=1))
@@ -201,15 +201,15 @@ def produce_addition_set(
     sum_train_samples = np.concatenate(sum_train_samples, axis=0)
     sum_train_concepts = np.concatenate(sum_train_concepts, axis=0)
     sum_train_labels = np.array(sum_train_labels)
-    if output_channels != 1 and concat_dim != 'channels':
+    if output_channels != 1 and concat_dim != "channels":
         sum_train_samples = np.stack(
-            (sum_train_samples[:, :, :, 0].astype(np.float32),)*output_channels,
+            (sum_train_samples[:, :, :, 0].astype(np.float32),) * output_channels,
             axis=-1,
         )
-    if img_format == 'channels_first':
+    if img_format == "channels_first":
         sum_train_samples = np.transpose(sum_train_samples, axes=[0, 3, 2, 1])
     if normalize_samples:
-        sum_train_samples = sum_train_samples/255.0
+        sum_train_samples = sum_train_samples / 255.0
     if sample_concepts is not None:
         sum_train_concepts = sum_train_concepts[:, sample_concepts]
     if concept_transform is not None:
@@ -228,6 +228,7 @@ def produce_addition_set(
             )
     return sum_train_samples, sum_train_labels, sum_train_concepts
 
+
 def load_mnist_addition(
     cache_dir="mnist",
     seed=42,
@@ -243,7 +244,7 @@ def load_mnist_addition(
     num_workers=-1,
     sample_concepts=None,
     as_channels=True,
-    img_format='channels_first',
+    img_format="channels_first",
     output_channels=1,
     threshold=False,
     mixing=True,
@@ -257,17 +258,21 @@ def load_mnist_addition(
     test_noise_level = (
         test_noise_level if (test_noise_level is not None) else noise_level
     )
-    os.environ['PYTHONHASHSEED'] = str(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
     random.seed(seed)
     np.random.seed(seed)
     pytorch_lightning.utilities.seed.seed_everything(seed)
 
     concept_groups = []
     for operand_digits in selected_digits:
-        concept_groups.append(list(range(
-            len(concept_groups),
-            len(concept_groups) + len(operand_digits),
-        )))
+        concept_groups.append(
+            list(
+                range(
+                    len(concept_groups),
+                    len(concept_groups) + len(operand_digits),
+                )
+            )
+        )
 
     ds_test = torchvision.datasets.MNIST(
         cache_dir,
@@ -281,14 +286,18 @@ def load_mnist_addition(
     y_test = []
 
     for x, y in ds_test:
-        x_test.append(np.expand_dims(
-            np.expand_dims(x, axis=0),
-            axis=-1,
-        ))
-        y_test.append(np.expand_dims(
-            np.expand_dims(y, axis=0),
-            axis=-1,
-        ))
+        x_test.append(
+            np.expand_dims(
+                np.expand_dims(x, axis=0),
+                axis=-1,
+            )
+        )
+        y_test.append(
+            np.expand_dims(
+                np.expand_dims(y, axis=0),
+                axis=-1,
+            )
+        )
     x_test = np.concatenate(x_test, axis=0)
     y_test = np.concatenate(y_test, axis=0)
 
@@ -302,7 +311,7 @@ def load_mnist_addition(
         sample_concepts=sample_concepts,
         img_format=img_format,
         output_channels=1 if as_channels else output_channels,
-        concat_dim='channels' if as_channels else 'y',
+        concat_dim="channels" if as_channels else "y",
         even_concepts=even_concepts,
         even_labels=even_labels,
         threshold_labels=threshold_labels,
@@ -334,8 +343,6 @@ def load_mnist_addition(
     if test_only:
         return test_dl
 
-
-
     # Now time to do the same for the train/val datasets!
     ds_train = torchvision.datasets.MNIST(
         cache_dir,
@@ -343,41 +350,42 @@ def load_mnist_addition(
         download=True,
     )
 
-
     x_train = []
     y_train = []
 
     for x, y in ds_train:
-        x_train.append(np.expand_dims(
-            np.expand_dims(x, axis=0),
-            axis=-1,
-        ))
-        y_train.append(np.expand_dims(
-            np.expand_dims(y, axis=0),
-            axis=-1,
-        ))
+        x_train.append(
+            np.expand_dims(
+                np.expand_dims(x, axis=0),
+                axis=-1,
+            )
+        )
+        y_train.append(
+            np.expand_dims(
+                np.expand_dims(y, axis=0),
+                axis=-1,
+            )
+        )
 
     x_train = np.concatenate(x_train, axis=0)
     y_train = np.concatenate(y_train, axis=0)
 
-
     if val_percent:
-        x_train, x_val, y_train, y_val = \
-            sklearn.model_selection.train_test_split(
-                x_train,
-                y_train,
-                test_size=val_percent,
-            )
+        x_train, x_val, y_train, y_val = sklearn.model_selection.train_test_split(
+            x_train,
+            y_train,
+            test_size=val_percent,
+        )
         x_val, y_val, c_val = produce_addition_set(
             X=x_val,
             y=y_val,
-            dataset_size=int(train_dataset_size*val_percent),
+            dataset_size=int(train_dataset_size * val_percent),
             num_operands=num_operands,
             selected_digits=selected_digits,
             sample_concepts=sample_concepts,
             img_format=img_format,
             output_channels=1 if as_channels else output_channels,
-            concat_dim='channels' if as_channels else 'y',
+            concat_dim="channels" if as_channels else "y",
             even_concepts=even_concepts,
             even_labels=even_labels,
             threshold_labels=threshold_labels,
@@ -418,7 +426,7 @@ def load_mnist_addition(
         sample_concepts=sample_concepts,
         img_format=img_format,
         output_channels=1 if as_channels else output_channels,
-        concat_dim='channels' if as_channels else 'y',
+        concat_dim="channels" if as_channels else "y",
         even_concepts=even_concepts,
         even_labels=even_labels,
         threshold_labels=threshold_labels,
@@ -455,12 +463,12 @@ def load_mnist_addition(
 
 
 def generate_data(
-        config,
-        root_dir="mnist",
-        seed=42,
-        output_dataset_vars=False,
-        rerun=False,
-    ):
+    config,
+    root_dir="mnist",
+    seed=42,
+    output_dataset_vars=False,
+    rerun=False,
+):
     selected_digits = config.get("selected_digits", list(range(2)))
     num_operands = config.get("num_operands", 32)
     if not isinstance(selected_digits[0], list):
@@ -476,16 +484,18 @@ def generate_data(
 
     if even_concepts:
         num_concepts = num_operands
-        concept_group_map = {
-            i: [i] for i in range(num_operands)
-        }
+        concept_group_map = {i: [i] for i in range(num_operands)}
     else:
         num_concepts = 0
         concept_group_map = {}
-        n_tasks = 1 # Zero is always included as a possible sum
+        n_tasks = 1  # Zero is always included as a possible sum
         for operand_idx, used_operand_digits in enumerate(selected_digits):
-            num_curr_concepts = len(used_operand_digits) if len(used_operand_digits) > 2 else 1
-            concept_group_map[operand_idx] = list(range(num_concepts, num_concepts + num_curr_concepts))
+            num_curr_concepts = (
+                len(used_operand_digits) if len(used_operand_digits) > 2 else 1
+            )
+            concept_group_map[operand_idx] = list(
+                range(num_concepts, num_concepts + num_curr_concepts)
+            )
             num_concepts += num_curr_concepts
             n_tasks += np.max(used_operand_digits)
 
@@ -550,14 +560,15 @@ def generate_data(
                             new_concept_group[concept_group_name].append(
                                 remap[other_concept]
                             )
+
         def concept_transform(sample):
             return sample[:, selected_concepts]
+
         num_concepts = new_n_concepts
         concept_group_map = new_concept_group
         logging.debug("\t\tSelected concepts:", selected_concepts)
         logging.debug(
-            f"\t\tUpdated concept group map "
-            f"(with {len(concept_group_map)} groups):"
+            f"\t\tUpdated concept group map " f"(with {len(concept_group_map)} groups):"
         )
         for k, v in concept_group_map.items():
             logging.debug(f"\t\t\t{k} -> {v}")
@@ -578,7 +589,7 @@ def generate_data(
         num_workers=config.get("num_workers", -1),
         sample_concepts=config.get("sample_concepts", None),
         as_channels=config.get("as_channels", True),
-        img_format=config.get("img_format", 'channels_first'),
+        img_format=config.get("img_format", "channels_first"),
         output_channels=config.get("output_channels", 1),
         threshold=config.get("threshold", True),
         mixing=config.get("mixing", True),
@@ -593,7 +604,7 @@ def generate_data(
         ),
     )
 
-    if config.get('weight_loss', False):
+    if config.get("weight_loss", False):
         attribute_count = np.zeros((num_concepts,))
         samples_seen = 0
         for i, data in enumerate(train_dl):
@@ -614,5 +625,5 @@ def generate_data(
         val_dl,
         test_dl,
         imbalance,
-        (num_concepts, n_tasks, concept_group_map)
+        (num_concepts, n_tasks, concept_group_map),
     )

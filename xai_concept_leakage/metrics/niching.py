@@ -4,6 +4,7 @@ https://github.com/mateoespinosa/concept-quality.
 
 All credit goes to Espinosa Zarlenga et al. AAAI 2023.
 """
+
 import numpy as np
 
 from scipy.special import softmax
@@ -15,7 +16,7 @@ from tqdm import tqdm
 
 
 def niche_completeness(c_pred, y_true, predictor_model, niches):
-    '''
+    """
     Computes the niche completeness score for the downstream task
     :param c_pred: Concept data predictions, numpy array of shape
         (n_samples, n_concepts)
@@ -25,7 +26,7 @@ def niche_completeness(c_pred, y_true, predictor_model, niches):
         labels from the concept data
     :return: Accuracy of predictor_model, evaluated on niches obtained from the
         provided concept and label data
-    '''
+    """
     n_tasks = y_true.shape[1]
     # compute niche completeness for each task
     niche_completeness_list, y_pred_list = [], []
@@ -36,7 +37,7 @@ def niche_completeness(c_pred, y_true, predictor_model, niches):
 
         # compute task predictions
         y_pred_niche = predictor_model.predict_proba(niche)
-        if predictor_model.__class__.__name__ == 'Sequential':
+        if predictor_model.__class__.__name__ == "Sequential":
             # get class labels from logits
             y_pred_niche = y_pred_niche > 0
         elif len(y_pred_niche.shape) == 1:
@@ -46,17 +47,17 @@ def niche_completeness(c_pred, y_true, predictor_model, niches):
 
     y_preds = np.vstack(y_pred_list).T
     y_preds = softmax(y_preds, axis=1)
-    auc = roc_auc_score(y_true, y_preds, multi_class='ovo')
+    auc = roc_auc_score(y_true, y_preds, multi_class="ovo")
 
     result = {
-        'auc_completeness': auc,
-        'y_preds': y_preds,
+        "auc_completeness": auc,
+        "y_preds": y_preds,
     }
     return result
 
 
 def niche_completeness_ratio(c_pred, y_true, predictor_model, niches):
-    '''
+    """
     Computes the niche completeness ratio for the downstream task
     :param c_pred: Concept data predictions, numpy array of shape
         (n_samples, n_concepts)
@@ -66,11 +67,11 @@ def niche_completeness_ratio(c_pred, y_true, predictor_model, niches):
         from the concept data
     :return: Accuracy ratio between the accuracy of predictor_model evaluated
         on niches and the accuracy of predictor_model evaluated on all concepts
-    '''
+    """
     n_tasks = y_true.shape[1]
 
     y_pred_test = predictor_model.predict_proba(c_pred)
-    if predictor_model.__class__.__name__ == 'Sequential':
+    if predictor_model.__class__.__name__ == "Sequential":
         # get class labels from logits
         y_pred_test = y_pred_test > 0
     elif len(y_pred_test.shape) == 1:
@@ -85,7 +86,7 @@ def niche_completeness_ratio(c_pred, y_true, predictor_model, niches):
 
         # compute task predictions
         y_pred_niche = predictor_model.predict_proba(niche)
-        if predictor_model.__class__.__name__ == 'Sequential':
+        if predictor_model.__class__.__name__ == "Sequential":
             # get class labels from logits
             y_pred_niche = y_pred_niche > 0
         elif len(y_pred_niche.shape) == 1:
@@ -102,14 +103,14 @@ def niche_completeness_ratio(c_pred, y_true, predictor_model, niches):
         niche_completeness_list.append(niche_completeness)
 
     result = {
-        'niche_completeness_ratio_mean': np.mean(niche_completeness_list),
-        'niche_completeness_ratio': niche_completeness_list,
+        "niche_completeness_ratio_mean": np.mean(niche_completeness_list),
+        "niche_completeness_ratio": niche_completeness_list,
     }
     return result
 
 
 def niche_impurity(c_pred, y_true, predictor_model, niches):
-    '''
+    """
     Computes the niche impurity score for the downstream task
     :param c_pred: Concept data predictions, numpy array of shape
         (n_samples, n_concepts)
@@ -120,12 +121,12 @@ def niche_impurity(c_pred, y_true, predictor_model, niches):
     :return: Accuracy ratio between the accuracy of predictor_model evaluated on
         concepts outside niches and the accuracy of predictor_model evaluated on
         concepts inside niches
-    '''
+    """
     n_tasks = y_true.shape[1]
 
     if len(c_pred.shape) == 2:
         n_samples, n_concepts = c_pred.shape
-        assert n_concepts == n_tasks, 'Number of concepts and tasks must be equal'
+        assert n_concepts == n_tasks, "Number of concepts and tasks must be equal"
 
         # compute niche completeness for each task
         y_pred_list = []
@@ -147,7 +148,7 @@ def niche_impurity(c_pred, y_true, predictor_model, niches):
             # compute task predictions
             y_pred_niche = predictor_model.predict_proba(niche)
             y_pred_niche_out = predictor_model.predict_proba(niche_out)
-            if predictor_model.__class__.__name__ == 'Sequential':
+            if predictor_model.__class__.__name__ == "Sequential":
                 # get class labels from logits
                 y_pred_niche_out = y_pred_niche_out > 0
             elif len(y_pred_niche.shape) == 1:
@@ -158,8 +159,8 @@ def niche_impurity(c_pred, y_true, predictor_model, niches):
             nis = nis / count
     else:
         n_samples, h_concepts, n_concepts = c_pred.shape
-        assert n_concepts == n_tasks, 'Number of concepts and tasks must be equal'
-        c_soft_test2 = c_pred.reshape(-1, h_concepts*n_concepts)
+        assert n_concepts == n_tasks, "Number of concepts and tasks must be equal"
+        c_soft_test2 = c_pred.reshape(-1, h_concepts * n_concepts)
         nis = 0.0
         count = 0
         for i in range(n_concepts):
@@ -185,10 +186,7 @@ def niche_impurity(c_pred, y_true, predictor_model, niches):
     return nis
 
 
-
-
-
-def niche_finding(c, y, mode='mi', threshold=0.5):
+def niche_finding(c, y, mode="mi", threshold=0.5):
     n_concepts = c.shape[-1]
     n_targets = y.shape[-1]
     if len(c.shape) == 3:
@@ -202,11 +200,11 @@ def niche_finding(c, y, mode='mi', threshold=0.5):
                 niching_matrix[i, j] = nm.max()
         niches = niching_matrix > threshold
     else:
-        if mode == 'corr':
+        if mode == "corr":
             corrm = np.corrcoef(np.hstack([c, y]).T)
             niching_matrix = corrm[:n_concepts, n_concepts:]
             niches = np.abs(niching_matrix) > threshold
-        elif mode == 'mi':
+        elif mode == "mi":
             nm = []
             for yj in y.T:
                 mi = mutual_info_classif(c, yj)
@@ -238,8 +236,8 @@ def niching_high_dim(
             nm = corrm[:h_concepts, h_concepts:]
             niching_matrix[i, j] = nm.max()
 
-    c_soft_train2 = c_soft_train.reshape(-1, h_concepts*n_concepts)
-    c_soft_test2 = c_soft_test.reshape(-1, h_concepts*n_concepts)
+    c_soft_train2 = c_soft_train.reshape(-1, h_concepts * n_concepts)
+    c_soft_test2 = c_soft_test.reshape(-1, h_concepts * n_concepts)
     classifier.fit(c_soft_train2, c_true_train)
 
     c_preds_impurity = []
@@ -262,7 +260,7 @@ def niching_high_dim(
     return roc_auc_score(
         c_true_test.argmax(axis=1),
         c_preds_impurity,
-        multi_class='ovo',
+        multi_class="ovo",
     )
 
 
@@ -321,10 +319,7 @@ def niche_impurity_score(
 
     if predictor_model_fn is None:
         predictor_model_fn = lambda n_concepts: MLPClassifier(
-            (20, 20),
-            random_state=1,
-            max_iter=1000,
-            batch_size=min(512, n_samples)
+            (20, 20), random_state=1, max_iter=1000, batch_size=min(512, n_samples)
         )
     if predictor_train_kwags is None:
         predictor_train_kwags = {}
@@ -366,7 +361,7 @@ def niche_impurity_score(
         niches, _ = niche_finding(
             c_soft_train,
             c_true_train,
-            mode='corr',
+            mode="corr",
             threshold=beta,
         )
         # compute impurity scores
@@ -383,4 +378,3 @@ def niche_impurity_score(
         prev_value = nis_score
 
     return auc
-

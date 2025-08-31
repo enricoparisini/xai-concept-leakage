@@ -7,6 +7,7 @@ from xai_concept_leakage.interventions.intervention_policy import InterventionPo
 ## CooP Policy Definition
 ##########################
 
+
 class CooP(InterventionPolicy):
     # CooP Intervention Policy
     def __init__(
@@ -27,7 +28,7 @@ class CooP(InterventionPolicy):
         min_importance=None,
         use_uncertainty_proxy=False,
         include_prior=False,
-        **kwargs
+        **kwargs,
     ):
         self.n_tasks = n_tasks
         self.num_groups_intervened = num_groups_intervened
@@ -78,10 +79,7 @@ class CooP(InterventionPolicy):
         self.include_prior = include_prior
 
     def _normalize_importance(self, importance_scores):
-        if (
-            (self.max_importance is None) or
-            (self.min_importance is None)
-        ):
+        if (self.max_importance is None) or (self.min_importance is None):
             # Then nothing to normalize here!
             return importance_scores
         return (importance_scores - self.min_importance) / (
@@ -89,10 +87,7 @@ class CooP(InterventionPolicy):
         )
 
     def _normalize_uncertainty(self, uncertainty_scores):
-        if (
-            (self.max_uncertainty is None) or
-            (self.min_uncertainty is None)
-        ):
+        if (self.max_uncertainty is None) or (self.min_uncertainty is None):
             # Then nothing to normalize here!
             return uncertainty_scores
         return (uncertainty_scores - self.min_uncertainty) / (
@@ -123,19 +118,16 @@ class CooP(InterventionPolicy):
             )
             if self.n_tasks > 1:
                 pred_class_prob, pred_class = torch.nn.functional.softmax(
-                    y_preds,
-                    dim=-1
+                    y_preds, dim=-1
                 ).max(dim=-1)
             else:
                 y_probs = torch.sigmoid(y_preds)
                 pred_class = torch.squeeze((y_probs >= 0.5), axis=-1).type(
                     y_preds.type()
                 )
-                pred_class_prob = (
-                    y_probs * pred_class + (1 - y_probs) * (1 - pred_class)
+                pred_class_prob = y_probs * pred_class + (1 - y_probs) * (
+                    1 - pred_class
                 )
-
-
 
         # And then estimating how much this would change if we intervene on the
         # concept of interest
@@ -170,8 +162,8 @@ class CooP(InterventionPolicy):
             else:
                 y_probs = torch.sigmoid(change_y_preds)
                 y_probs = torch.squeeze(y_probs, dim=-1)
-                expected_change = (
-                    y_probs * pred_class + (1 - y_probs) * (1 - pred_class)
+                expected_change = y_probs * pred_class + (1 - y_probs) * (
+                    1 - pred_class
                 )
         else:
             # Else we actually compute the expectation
@@ -201,7 +193,8 @@ class CooP(InterventionPolicy):
                     )
 
                     expected_change += (
-                        prob * new_prob_distr[
+                        prob
+                        * new_prob_distr[
                             torch.eye(new_prob_distr.shape[-1])[pred_class.cpu()].type(
                                 torch.bool
                             )
@@ -210,10 +203,9 @@ class CooP(InterventionPolicy):
                 else:
                     new_prob_distr = torch.sigmoid(change_y_preds)
                     new_prob_distr = torch.squeeze(new_prob_distr, dim=-1)
-                    expected_change += (
-                        new_prob_distr * pred_class +
-                        (1 - new_prob_distr) * (1 - pred_class)
-                    )
+                    expected_change += new_prob_distr * pred_class + (
+                        1 - new_prob_distr
+                    ) * (1 - pred_class)
         # Put these together to get the expected change in output probability
         if self._optimal:
             # Then the score will just consider the probability of the ground
@@ -222,9 +214,9 @@ class CooP(InterventionPolicy):
 
         # Else we compute the expected change in the predicted probability given
         # an intervention on this concept
-        return self._normalize_importance(torch.abs(
-            expected_change - pred_class_prob.to(expected_change.device)
-        ))
+        return self._normalize_importance(
+            torch.abs(expected_change - pred_class_prob.to(expected_change.device))
+        )
 
     def _uncertainty_score(
         self,
@@ -238,8 +230,8 @@ class CooP(InterventionPolicy):
             scores = 1 / torch.abs(hat_c - 0.5 + self.eps)
         else:
             scores = -(
-                (hat_c * torch.log(hat_c + self.eps)) +
-                (1 - hat_c) * torch.log(1 - hat_c + self.eps)
+                (hat_c * torch.log(hat_c + self.eps))
+                + (1 - hat_c) * torch.log(1 - hat_c + self.eps)
             )
         return self._normalize_uncertainty(scores)
 
@@ -266,15 +258,14 @@ class CooP(InterventionPolicy):
             )
             if self.n_tasks > 1:
                 pred_class_prob, pred_class = torch.nn.functional.softmax(
-                    y_preds,
-                    dim=-1
+                    y_preds, dim=-1
                 ).max(dim=-1)
             else:
                 y_probs = torch.sigmoid(y_preds)
                 y_probs = torch.squeeze(y_probs, dim=-1)
                 pred_class = (y_probs >= 0.5).type(y_preds.type())
-                pred_class_prob = (
-                    y_probs * pred_class + (1 - y_probs) * (1 - pred_class)
+                pred_class_prob = y_probs * pred_class + (1 - y_probs) * (
+                    1 - pred_class
                 )
         else:
             # Else we assume we have an oracle that gives us the ground truth
@@ -288,12 +279,11 @@ class CooP(InterventionPolicy):
             prior_distribution = torch.ones(c.shape).to(c.device) / denom
         elif self.cbm.use_concept_groups and self.include_prior:
             new_prior_distribution = torch.ones_like(pred_c).to(pred_c.device)
-            for group_idx, (_, concepts) in enumerate(
-                self.concept_group_map.items()
-            ):
+            for group_idx, (_, concepts) in enumerate(self.concept_group_map.items()):
                 for concept_idx in concepts:
-                    new_prior_distribution[:, concept_idx] = \
-                        prior_distribution[:, group_idx]
+                    new_prior_distribution[:, concept_idx] = prior_distribution[
+                        :, group_idx
+                    ]
             prior_distribution = new_prior_distribution
         for concept_idx in range(c.shape[-1]):
             # If there is at least one element in the batch that has this
@@ -312,23 +302,25 @@ class CooP(InterventionPolicy):
                             [x[samples_not_using_concept] for x in latent]
                         )
                 x_used = x[samples_not_using_concept, :]
-                prev_interventions_used = \
-                    prev_interventions[samples_not_using_concept, :]
+                prev_interventions_used = prev_interventions[
+                    samples_not_using_concept, :
+                ]
                 c_used = c[samples_not_using_concept, :]
                 pred_class_used = pred_class[samples_not_using_concept]
                 pred_c_used = pred_c[samples_not_using_concept, :]
                 pred_class_prob_used = pred_class_prob[samples_not_using_concept]
-                sample_uncertainties[samples_not_using_concept, concept_idx] = \
+                sample_uncertainties[samples_not_using_concept, concept_idx] = (
                     self._uncertainty_score(
                         concept_idx=concept_idx,
                         c=c_used,
                         pred_c=pred_c_used,
                     )
-                competencies_used = \
-                        competencies[samples_not_using_concept, concept_idx]
-                prior_distribution_used = \
-                    prior_distribution[samples_not_using_concept, concept_idx]
-                sample_importances[samples_not_using_concept, concept_idx] = \
+                )
+                competencies_used = competencies[samples_not_using_concept, concept_idx]
+                prior_distribution_used = prior_distribution[
+                    samples_not_using_concept, concept_idx
+                ]
+                sample_importances[samples_not_using_concept, concept_idx] = (
                     self._importance_score(
                         x=x_used,
                         concept_idx=concept_idx,
@@ -341,14 +333,13 @@ class CooP(InterventionPolicy):
                         competencies=competencies_used,
                         prior_distribution=prior_distribution_used,
                     ).type(sample_importances.type())
+                )
         # if prior_distribution is not None:
         #     sample_importances *= prior_distribution
         # Updates prev_interventions rather than copying it to speed things up
         if self.group_based:
             # Then we average scores across members of the same group
-            group_scores = torch.zeros(
-                (c.shape[0], len(self.concept_group_map))
-            ).to(
+            group_scores = torch.zeros((c.shape[0], len(self.concept_group_map))).to(
                 pred_c.device
             )
             group_names = []
@@ -365,29 +356,26 @@ class CooP(InterventionPolicy):
                     dim=-1,
                 )
                 current_score = (
-                    self.concept_entropy_weight * group_uncertainties +
-                    self.importance_weight * group_importances
+                    self.concept_entropy_weight * group_uncertainties
+                    + self.importance_weight * group_importances
                 )
                 # Finally include the aquisition cost
                 # WLOG, we assume that the CooP multiplier for this cost is
                 # merged within the cost itself
                 if self.acquisition_costs is not None:
                     # Then we add the cost of aquiring all concepts in the group!
-                    current_score += np.sum(
-                        self.acquisition_costs[group_concepts]
-                    )
+                    current_score += np.sum(self.acquisition_costs[group_concepts])
                 group_scores[:, group_idx] = current_score
             next_groups = torch.argmax(group_scores, axis=-1)
             for sample_idx, best_group_idx in enumerate(next_groups):
                 # Get the concepts corresponding to the group we will be
                 # intervening on
-                next_concepts = \
-                    self.concept_group_map[group_names[best_group_idx]]
+                next_concepts = self.concept_group_map[group_names[best_group_idx]]
                 prev_interventions[sample_idx, next_concepts] = 1
         else:
             sample_scores = (
-                self.concept_entropy_weight * sample_uncertainties +
-                self.importance_weight * sample_importances
+                self.concept_entropy_weight * sample_uncertainties
+                + self.importance_weight * sample_importances
             )
             # Finally include the aquisition cost
             # WLOG, we assume that the CooP multiplier for this cost is merged
@@ -399,7 +387,6 @@ class CooP(InterventionPolicy):
             prev_interventions[:, next_concepts.detach().cpu().numpy()] = 1
 
         return prev_interventions, latent, y_preds
-
 
     def __call__(
         self,
@@ -420,13 +407,15 @@ class CooP(InterventionPolicy):
         if prior_distribution is None:
             prior_distribution = torch.ones(c.shape).to(c.device) / c.shape[-1]
         elif not self.cbm.use_concept_groups:
-            prior_distribution = torch.FloatTensor([
+            prior_distribution = torch.FloatTensor(
                 [
-                    torch.sum(prior_distribution[idx, concepts])
-                    for _, concepts in self.concept_group_map.items()
+                    [
+                        torch.sum(prior_distribution[idx, concepts])
+                        for _, concepts in self.concept_group_map.items()
+                    ]
+                    for idx in range(x.shape[0])
                 ]
-                for idx in range(x.shape[0])
-            ]).to(prior_distribution.device)
+            ).to(prior_distribution.device)
         _, _, y_preds, _, latent = self.cbm(x)
         if competencies is None:
             competencies = torch.ones(c.shape).to(x.device)
@@ -445,4 +434,3 @@ class CooP(InterventionPolicy):
                 prior_distribution=prior_distribution,
             )
         return mask, c
-

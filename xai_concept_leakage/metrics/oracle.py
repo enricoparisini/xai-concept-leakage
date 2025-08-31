@@ -1,4 +1,4 @@
-'''
+"""
 Efficient implementation of the Oracle Impurity Score (OIS)
 taken from https://github.com/mateoespinosa/concept-quality.
 
@@ -7,7 +7,7 @@ All credit goes to Espinosa Zarlenga et al. AAAI 2023.
 Metrics to measure concept purity inspired on the definition of purity by
 Mahinpei et al.'s "Promises and Pitfalls of Black-Box Concept Learning Models"
 (found at https://arxiv.org/abs/2106.13314).
-'''
+"""
 
 import numpy as np
 import scipy
@@ -20,6 +20,7 @@ from sklearn.model_selection import train_test_split
 ################################################################################
 ## Concept Whitening Concept Purity Metrics
 ################################################################################
+
 
 def concept_similarity_matrix(
     concept_representations,
@@ -49,35 +50,32 @@ def concept_similarity_matrix(
     m_representations_normed = {}
     intra_dot_product_means_normed = {}
     for i in range(num_concepts):
-        m_representations_normed[i] = (
-            concept_representations[i] /
-            np.linalg.norm(concept_representations[i], axis=-1, keepdims=True)
-
+        m_representations_normed[i] = concept_representations[i] / np.linalg.norm(
+            concept_representations[i], axis=-1, keepdims=True
         )
         intra_dot_product_means_normed[i] = np.matmul(
-            m_representations_normed[i],
-            m_representations_normed[i].transpose()
+            m_representations_normed[i], m_representations_normed[i].transpose()
         ).mean()
 
         if compute_ratios:
             result[i, i] = 1.0
         else:
             result = np.matmul(
-                concept_representations[i],
-                concept_representations[i].transpose()
+                concept_representations[i], concept_representations[i].transpose()
             ).mean()
 
     for i in range(num_concepts):
         for j in range(i + 1, num_concepts):
             inter_dot = np.matmul(
-                m_representations_normed[i],
-                m_representations_normed[j].transpose()
+                m_representations_normed[i], m_representations_normed[j].transpose()
             ).mean()
             if compute_ratios:
-                result[i, j] = np.abs(inter_dot) / np.sqrt(np.abs(
-                    intra_dot_product_means_normed[i] *
-                    intra_dot_product_means_normed[j]
-                ))
+                result[i, j] = np.abs(inter_dot) / np.sqrt(
+                    np.abs(
+                        intra_dot_product_means_normed[i]
+                        * intra_dot_product_means_normed[j]
+                    )
+                )
             else:
                 result[i, j] = np.matmul(
                     concept_representations[i],
@@ -112,7 +110,7 @@ def find_max_alignment(matrix):
     result_alignment = [None for _ in range(matrix.shape[1])]
     used_rows = set()
     used_cols = set()
-    for (row, col) in sorted_inds:
+    for row, col in sorted_inds:
         if (col in used_cols) or (row in used_rows):
             # Then this is not something we can use any more
             continue
@@ -139,10 +137,7 @@ def max_alignment_matrix(matrix):
         of the given input tensor.
     """
     inds = find_max_alignment(matrix)
-    return np.stack(
-        [matrix[inds[i], :] for i in range(matrix.shape[1])],
-        axis=0
-    )
+    return np.stack([matrix[inds[i], :] for i in range(matrix.shape[1])], axis=0)
 
 
 ################################################################################
@@ -214,9 +209,9 @@ def concept_purity_matrix(
 
     # Check that their rank is the expected one
     assert len(c_true.shape) == 2, (
-        f'Expected testing concept predictions to be a matrix with shape '
-        f'(n_samples, n_concepts) but instead got a matrix with shape '
-        f'{c_true.shape}'
+        f"Expected testing concept predictions to be a matrix with shape "
+        f"(n_samples, n_concepts) but instead got a matrix with shape "
+        f"{c_true.shape}"
     )
 
     # Construct a list concept_label_cardinality that maps a concept to the
@@ -226,24 +221,24 @@ def concept_purity_matrix(
         n_soft_concepts = c_soft.shape[-1]
     else:
         assert isinstance(c_soft, list), (
-            f'c_soft must be passed as either a list or a np.ndarray. '
+            f"c_soft must be passed as either a list or a np.ndarray. "
             f'Instead we got an instance of "{type(c_soft).__name__}".'
         )
         n_soft_concepts = len(c_soft)
 
     assert n_soft_concepts >= n_true_concepts, (
-        f'Expected at least as many soft concept representations as true '
-        f'concepts labels. However we received {n_soft_concepts} soft concept '
-        f'representations per sample while we have {n_true_concepts} true '
-        f'concept labels per sample.'
+        f"Expected at least as many soft concept representations as true "
+        f"concepts labels. However we received {n_soft_concepts} soft concept "
+        f"representations per sample while we have {n_true_concepts} true "
+        f"concept labels per sample."
     )
 
     if isinstance(c_soft, np.ndarray):
         # Then, all concepts must have the same representation size
         assert c_soft.shape[0] == c_true.shape[0], (
-            f'Expected a many test soft-concepts as ground truth test '
-            f'concepts. Instead got {c_soft.shape[0]} soft-concepts '
-            f'and {c_true.shape[0]} ground truth test concepts.'
+            f"Expected a many test soft-concepts as ground truth test "
+            f"concepts. Instead got {c_soft.shape[0]} soft-concepts "
+            f"and {c_true.shape[0]} ground truth test concepts."
         )
         if concept_label_cardinality is None:
             concept_label_cardinality = [2 for _ in range(n_soft_concepts)]
@@ -263,7 +258,7 @@ def concept_purity_matrix(
         # Else, time to infer these values from the given list of soft
         # labels
         assert isinstance(c_soft, list), (
-            f'c_soft must be passed as either a list or a np.ndarray. '
+            f"c_soft must be passed as either a list or a np.ndarray. "
             f'Instead we got an instance of "{type(c_soft).__name__}".'
         )
         if concept_label_cardinality is None:
@@ -285,34 +280,35 @@ def concept_purity_matrix(
         def predictor_model_fn(
             output_concept_classes=2,
         ):
-            estimator = tf.keras.models.Sequential([
-                tf.keras.layers.Dense(
-                    32,
-                    activation='relu',
-                    name="predictor_fc_1",
-                ),
-                tf.keras.layers.Dense(
-                    output_concept_classes if output_concept_classes > 2 else 1,
-                    # We will merge the activation into the loss for numerical
-                    # stability
-                    activation=None,
-                    name="predictor_fc_out",
-                ),
-            ])
+            estimator = tf.keras.models.Sequential(
+                [
+                    tf.keras.layers.Dense(
+                        32,
+                        activation="relu",
+                        name="predictor_fc_1",
+                    ),
+                    tf.keras.layers.Dense(
+                        output_concept_classes if output_concept_classes > 2 else 1,
+                        # We will merge the activation into the loss for numerical
+                        # stability
+                        activation=None,
+                        name="predictor_fc_out",
+                    ),
+                ]
+            )
             if jointly_learnt:
                 loss = tf.nn.sigmoid_cross_entropy_with_logits
             else:
                 loss = (
-                    tf.keras.losses.SparseCategoricalCrossentropy(
-                        from_logits=True
-                    ) if output_concept_classes > 2 else
-                    tf.keras.losses.BinaryCrossentropy(
+                    tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
+                    if output_concept_classes > 2
+                    else tf.keras.losses.BinaryCrossentropy(
                         from_logits=True,
                     )
                 )
             estimator.compile(
                 # Use ADAM optimizer by default
-                optimizer='adam',
+                optimizer="adam",
                 # Note: we assume labels come without a one-hot-encoding in the
                 #       case when the concepts are categorical.
                 loss=loss,
@@ -320,9 +316,9 @@ def concept_purity_matrix(
             return estimator
 
     predictor_train_kwags = predictor_train_kwags or {
-        'epochs': 25,
-        'batch_size': min(512, n_samples),
-        'verbose': 0,
+        "epochs": 25,
+        "batch_size": min(512, n_samples),
+        "verbose": 0,
     }
 
     # Time to start formulating our resulting matrix
@@ -390,13 +386,13 @@ def concept_purity_matrix(
                     auc = sklearn.metrics.roc_auc_score(
                         true_concepts,
                         used_preds,
-                        multi_class='ovo',
+                        multi_class="ovo",
                     )
                 else:
                     if concept_label_cardinality[tgt_true_concept] <= 2:
-                        used_preds = (
-                            scipy.special.expit(used_preds) >= 0.5
-                        ).astype(np.int32)
+                        used_preds = (scipy.special.expit(used_preds) >= 0.5).astype(
+                            np.int32
+                        )
                     else:
                         used_preds = np.argmax(used_preds, axis=-1)
                         true_concepts = np.argmax(true_concepts, axis=-1)
@@ -426,7 +422,7 @@ def concept_purity_matrix(
                 # Train it
                 estimator.fit(
                     concept_soft_train_x,
-                    c_true[train_indexes, tgt_true_concept:(tgt_true_concept + 1)],
+                    c_true[train_indexes, tgt_true_concept : (tgt_true_concept + 1)],
                     **predictor_train_kwags,
                 )
 
@@ -452,7 +448,7 @@ def concept_purity_matrix(
                 auc = sklearn.metrics.roc_auc_score(
                     true_concepts,
                     preds,
-                    multi_class='ovo',
+                    multi_class="ovo",
                 )
 
                 # Finally, time to populate the actual entry of our resulting
@@ -582,6 +578,7 @@ def oracle_purity_matrix(
 ## Purity Metrics
 ################################################################################
 
+
 def normalize_impurity(impurity, n_concepts):
     return impurity / (n_concepts / 2)
 
@@ -592,7 +589,7 @@ def oracle_impurity_score(
     predictor_model_fn=None,
     predictor_train_kwags=None,
     test_size=0.2,
-    norm_fn=lambda x: np.linalg.norm(x, ord='fro'),
+    norm_fn=lambda x: np.linalg.norm(x, ord="fro"),
     oracle_matrix=None,
     purity_matrix=None,
     output_matrices=False,
@@ -684,10 +681,7 @@ def oracle_impurity_score(
     # Now the concept_label_cardinality vector from the given soft labels
     (n_samples, n_concepts) = c_true.shape
     if concept_label_cardinality is None:
-        concept_label_cardinality = [
-            len(set(c_true[:, i]))
-            for i in range(n_concepts)
-        ]
+        concept_label_cardinality = [len(set(c_true[:, i])) for i in range(n_concepts)]
     # First compute the predictor soft-concept purity matrix
     if purity_matrix is not None:
         pred_matrix = purity_matrix
@@ -755,7 +749,7 @@ def encoder_oracle_impurity_score(
     predictor_model_fn=None,
     predictor_train_kwags=None,
     test_size=0.2,
-    norm_fn=lambda x: np.linalg.norm(x, ord='fro'),
+    norm_fn=lambda x: np.linalg.norm(x, ord="fro"),
     oracle_matrix=None,
     output_matrices=False,
     purity_matrix=None,

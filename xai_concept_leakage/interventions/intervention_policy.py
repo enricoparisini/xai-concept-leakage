@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 
+
 class InterventionPolicy(ABC):
 
     def __init__(
@@ -19,7 +20,6 @@ class InterventionPolicy(ABC):
         self.include_prior = include_prior
         self.horizon = horizon
         self.cbm_use_concept_groups = cbm.use_concept_groups
-
 
     @abstractmethod
     def __call__(

@@ -9,44 +9,39 @@ from xai_concept_leakage.models.cbm import ConceptBottleneckModel, compute_accur
 from xai_concept_leakage.models.cem import ConceptEmbeddingModel
 import xai_concept_leakage.train.utils as utils
 
+
 class IntAwareConceptBottleneckModel(ConceptBottleneckModel):
     def __init__(
         self,
         n_concepts,
         n_tasks,
         concept_loss_weight=1,
-
         extra_dims=0,
         bool=False,
         sigmoidal_prob=True,
         sigmoidal_extra_capacity=True,
         bottleneck_nonlinear=None,
         output_latent=False,
-
         x2c_model=None,
         c_extractor_arch=utils.wrap_pretrained_model(resnet50),
         c2y_model=None,
         c2y_layers=None,
-
         optimizer="adam",
         momentum=0.9,
         learning_rate=0.01,
         weight_decay=4e-05,
         weight_loss=None,
         task_class_weights=None,
-
         active_intervention_values=None,
         inactive_intervention_values=None,
         intervention_policy=None,
         output_interventions=False,
-
         intervention_discount=1,
         intervention_task_discount=1.1,
         intervention_weight=5,
         concept_map=None,
         use_concept_groups=True,
         task_loss_weight=0,
-
         include_only_last_trajectory_loss=True,
         intervention_task_loss_weight=1,
         rollout_init_steps=0,
@@ -54,7 +49,6 @@ class IntAwareConceptBottleneckModel(ConceptBottleneckModel):
         int_model_use_bn=True,
         top_k_accuracy=None,
         num_rollouts=1,
-
         # Parameters regarding how we select how many concepts to intervene on
         # in the horizon of a current trajectory (this is the lenght of the
         # trajectory)
@@ -63,15 +57,13 @@ class IntAwareConceptBottleneckModel(ConceptBottleneckModel):
         horizon_rate=1.005,
     ):
         assert task_loss_weight == 0, (
-            f'IntCBM only supports task_loss_weight=0 as this loss is included '
-            f'as part of the trajectory loss. It was given task_loss_weight = '
-            f'{task_loss_weight}'
+            f"IntCBM only supports task_loss_weight=0 as this loss is included "
+            f"as part of the trajectory loss. It was given task_loss_weight = "
+            f"{task_loss_weight}"
         )
         self.num_rollouts = num_rollouts
         if concept_map is None:
-            concept_map = dict([
-                (i, [i]) for i in range(n_concepts)
-            ])
+            concept_map = dict([(i, [i]) for i in range(n_concepts)])
         self.concept_map = concept_map
         if len(concept_map) == n_concepts:
             use_concept_groups = False
@@ -105,19 +97,18 @@ class IntAwareConceptBottleneckModel(ConceptBottleneckModel):
             use_concept_groups=use_concept_groups,
         )
 
-        units = [
-            n_concepts + # Bottleneck
-            n_concepts # Prev interventions
-        ] + (int_model_layers or [256, 128]) + [
-            len(self.concept_map) if self.use_concept_groups else n_concepts
-        ]
+        units = (
+            [n_concepts + n_concepts]  # Bottleneck  # Prev interventions
+            + (int_model_layers or [256, 128])
+            + [len(self.concept_map) if self.use_concept_groups else n_concepts]
+        )
         layers = []
         for i in range(1, len(units)):
             if int_model_use_bn:
                 layers.append(
-                    torch.nn.BatchNorm1d(num_features=units[i-1]),
+                    torch.nn.BatchNorm1d(num_features=units[i - 1]),
                 )
-            layers.append(torch.nn.Linear(units[i-1], units[i]))
+            layers.append(torch.nn.Linear(units[i - 1], units[i]))
             if i != len(units) - 1:
                 layers.append(torch.nn.LeakyReLU())
 
@@ -139,8 +130,7 @@ class IntAwareConceptBottleneckModel(ConceptBottleneckModel):
         self.loss_interventions = torch.nn.CrossEntropyLoss()
         self.max_horizon = max_horizon
         self.emb_size = 1
-        self.include_only_last_trajectory_loss = \
-            include_only_last_trajectory_loss
+        self.include_only_last_trajectory_loss = include_only_last_trajectory_loss
         self.intervention_task_loss_weight = intervention_task_loss_weight
 
         self._horizon_distr = lambda init, end: np.random.randint(
@@ -197,38 +187,34 @@ class IntAwareConceptBottleneckModel(ConceptBottleneckModel):
         train=False,
     ):
         if prev_interventions is None:
-            prev_interventions = torch.zeros(prob.shape).to(
-                pos_embeddings.device
-            )
-        if (competencies is None):
+            prev_interventions = torch.zeros(prob.shape).to(pos_embeddings.device)
+        if competencies is None:
             # Then we will always see competencies as perfect if they are not
             # given or if we are asked to explicitly ignore them
             if self.use_concept_groups:
-                competencies = torch.ones(
-                    (prob.shape[0], len(self.concept_map))
-                ).to(pos_embeddings.device)
+                competencies = torch.ones((prob.shape[0], len(self.concept_map))).to(
+                    pos_embeddings.device
+                )
             else:
                 competencies = torch.ones(prob.shape).to(pos_embeddings.device)
         # Shape is [B, n_concepts, emb_size]
         prob = prev_interventions * c + (1 - prev_interventions) * prob
         embeddings = (
-            torch.unsqueeze(prob, dim=-1) * pos_embeddings +
-            (1 - torch.unsqueeze(prob, dim=-1)) * neg_embeddings
+            torch.unsqueeze(prob, dim=-1) * pos_embeddings
+            + (1 - torch.unsqueeze(prob, dim=-1)) * neg_embeddings
         )
         # Zero out embeddings of previously intervened concepts
         if self.use_concept_groups:
             available_groups = torch.zeros(
                 (embeddings.shape[0], len(self.concept_map))
-            ).to(
-                embeddings.device
-            )
-            for group_idx, (_, group_concepts) in enumerate(
-                self.concept_map.items()
-            ):
-                available_groups[:, group_idx] = torch.logical_not(torch.any(
-                    prev_interventions[:, group_concepts] == 1,
-                    dim=-1,
-                ))
+            ).to(embeddings.device)
+            for group_idx, (_, group_concepts) in enumerate(self.concept_map.items()):
+                available_groups[:, group_idx] = torch.logical_not(
+                    torch.any(
+                        prev_interventions[:, group_concepts] == 1,
+                        dim=-1,
+                    )
+                )
             max_horizon = len(self.concept_map)
         else:
             available_groups = (1 - prev_interventions).to(embeddings.device)
@@ -242,9 +228,7 @@ class IntAwareConceptBottleneckModel(ConceptBottleneckModel):
             cat_inputs,
             dim=-1,
         )
-        next_concept_group_scores = self.concept_rank_model(
-            rank_input
-        )
+        next_concept_group_scores = self.concept_rank_model(rank_input)
         if train:
             return next_concept_group_scores
         next_concept_group_scores = torch.where(
@@ -265,10 +249,7 @@ class IntAwareConceptBottleneckModel(ConceptBottleneckModel):
     ):
         # Else we assume we are given binary competencies
         correctly_selected = torch.bernoulli(competencies).to(c.device)
-        c_updated = (
-            c * correctly_selected +
-            (1 - c) * (1 - correctly_selected)
-        )
+        c_updated = c * correctly_selected + (1 - c) * (1 - correctly_selected)
         return c_updated
 
     def _compute_task_loss(self, y, y_pred_logits):
@@ -290,7 +271,7 @@ class IntAwareConceptBottleneckModel(ConceptBottleneckModel):
         intervention_idxs,
         competencies=None,
     ):
-        if (competencies is not None):
+        if competencies is not None:
             weights = [
                 (competencies.to(c.device), c),
                 (1 - competencies.to(c.device), 1 - c),
@@ -309,35 +290,24 @@ class IntAwareConceptBottleneckModel(ConceptBottleneckModel):
             # So: (1) set all the probabilities of already intervened concepts
             #         using the set of concept labels provided for intervention
             probs = (
-                c_pred * (1 - intervention_idxs) +
-                c_for_interventions * intervention_idxs
+                c_pred * (1 - intervention_idxs)
+                + c_for_interventions * intervention_idxs
             )
 
             # Then: (2) For the newly intervened concepts, update only their
             #           probabilities using the provided ground truth values
             #           which, on the expectation, will be weighted with weight
             #           `weight
-            probs = (
-                probs * (1 - new_int) +
-                used_ground_truth_concepts * new_int
-            )
+            probs = probs * (1 - new_int) + used_ground_truth_concepts * new_int
 
             # Compute the bottleneck using the mixture of embeddings based
             # on their assigned probabilities
-            c_rollout_pred = (
-                (
-                    pos_embeddings *
-                    torch.unsqueeze(probs, dim=-1)
-                ) + (
-                    neg_embeddings *
-                    (1 - torch.unsqueeze(probs, dim=-1))
-                )
+            c_rollout_pred = (pos_embeddings * torch.unsqueeze(probs, dim=-1)) + (
+                neg_embeddings * (1 - torch.unsqueeze(probs, dim=-1))
             )
             # Flatten as the downstream model takes the entire bottleneck
             # as a single vector
-            c_rollout_pred = c_rollout_pred.view(
-                (-1, self.emb_size * self.n_concepts)
-            )
+            c_rollout_pred = c_rollout_pred.view((-1, self.emb_size * self.n_concepts))
 
             # Predict the output task logits with the given
             rollout_y_logits = self.c2y_model(c_rollout_pred)
@@ -363,12 +333,14 @@ class IntAwareConceptBottleneckModel(ConceptBottleneckModel):
         # intervened on
         target_int_logits = torch.ones(
             concept_group_scores.shape,
-        ).to(c.device) * (-np.Inf)
+        ).to(
+            c.device
+        ) * (-np.Inf)
         for target_concept in range(target_int_logits.shape[-1]):
             if self.use_concept_groups:
-                new_int = torch.zeros(
-                    prev_intervention_idxs.shape
-                ).to(prev_intervention_idxs.device)
+                new_int = torch.zeros(prev_intervention_idxs.shape).to(
+                    prev_intervention_idxs.device
+                )
                 for group_idx, (_, group_concepts) in enumerate(
                     self.concept_map.items()
                 ):
@@ -376,9 +348,9 @@ class IntAwareConceptBottleneckModel(ConceptBottleneckModel):
                         new_int[:, group_concepts] = 1
                         break
             else:
-                new_int = torch.zeros(
-                    prev_intervention_idxs.shape
-                ).to(prev_intervention_idxs.device)
+                new_int = torch.zeros(prev_intervention_idxs.shape).to(
+                    prev_intervention_idxs.device
+                )
                 new_int[:, target_concept] = 1
 
             # Make this intervention and lets see how the y logits change
@@ -422,31 +394,20 @@ class IntAwareConceptBottleneckModel(ConceptBottleneckModel):
 
             if self.n_tasks > 1:
                 one_hot_y = torch.nn.functional.one_hot(y, self.n_tasks)
-                target_int_logits[:, target_concept] = \
-                    rollout_y_logits[
-                        one_hot_y.type(torch.BoolTensor)
-                    ]
+                target_int_logits[:, target_concept] = rollout_y_logits[
+                    one_hot_y.type(torch.BoolTensor)
+                ]
             else:
-                pred_y_prob = torch.sigmoid(
-                    torch.squeeze(rollout_y_logits, dim=-1)
-                )
+                pred_y_prob = torch.sigmoid(torch.squeeze(rollout_y_logits, dim=-1))
                 target_int_logits[:, target_concept] = torch.where(
                     y == 1,
-                    torch.log(
-                        (pred_y_prob + 1e-15) /
-                        (1 - pred_y_prob + 1e-15)
-                    ),
-                    torch.log(
-                        (1 - pred_y_prob + 1e-15) /
-                        (pred_y_prob+ 1e-15)
-                    ),
+                    torch.log((pred_y_prob + 1e-15) / (1 - pred_y_prob + 1e-15)),
+                    torch.log((1 - pred_y_prob + 1e-15) / (pred_y_prob + 1e-15)),
                 )
 
         target_int_labels = torch.argmax(target_int_logits, -1)
         pred_int_labels = concept_group_scores.argmax(-1)
-        curr_acc = (
-            pred_int_labels == target_int_labels
-        ).float().mean()
+        curr_acc = (pred_int_labels == target_int_labels).float().mean()
         return target_int_labels, curr_acc
 
     def _setup_intervention_trajectory(
@@ -457,8 +418,7 @@ class IntAwareConceptBottleneckModel(ConceptBottleneckModel):
     ):
         # The limit of how many concepts we can intervene at most
         int_basis_lim = (
-            len(self.concept_map) if self.use_concept_groups
-            else self.n_concepts
+            len(self.concept_map) if self.use_concept_groups else self.n_concepts
         )
         # And the limit of how many concepts we will intervene at most during
         # this training round
@@ -501,14 +461,16 @@ class IntAwareConceptBottleneckModel(ConceptBottleneckModel):
             # accordingly
             for sample_idx in range(intervention_idxs.shape[0]):
                 probs = free_groups[sample_idx, :].detach().cpu().numpy()
-                probs = probs/np.sum(probs)
+                probs = probs / np.sum(probs)
                 if self.use_concept_groups:
-                    selected_groups = set(np.random.choice(
-                        int_basis_lim,
-                        size=initially_selected,
-                        replace=False,
-                        p=probs,
-                    ))
+                    selected_groups = set(
+                        np.random.choice(
+                            int_basis_lim,
+                            size=initially_selected,
+                            replace=False,
+                            p=probs,
+                        )
+                    )
                     for group_idx, (_, group_concepts) in enumerate(
                         self.concept_map.items()
                     ):
@@ -522,7 +484,7 @@ class IntAwareConceptBottleneckModel(ConceptBottleneckModel):
                             size=initially_selected,
                             replace=False,
                             p=probs,
-                        )
+                        ),
                     ] = 1
             discount = 1
             trajectory_weight = 0
@@ -533,9 +495,8 @@ class IntAwareConceptBottleneckModel(ConceptBottleneckModel):
             task_trajectory_weight = 1
             for i in range(current_horizon):
                 task_discount *= self.intervention_task_discount
-                if (
-                    (not self.include_only_last_trajectory_loss) or
-                    (i == current_horizon - 1)
+                if (not self.include_only_last_trajectory_loss) or (
+                    i == current_horizon - 1
                 ):
                     task_trajectory_weight += task_discount
             task_discount = 1
@@ -581,9 +542,7 @@ class IntAwareConceptBottleneckModel(ConceptBottleneckModel):
                 # resolution
                 free_groups = torch.ones(
                     (prev_interventions.shape[0], len(self.concept_map))
-                ).to(
-                    c.device
-                )
+                ).to(c.device)
                 # ASSUMPTION: THEY HAVE ALL BEEN INTERVENED ON THE SAME
                 # NUMBER OF CONCEPTS
                 cpu_ints = intervention_idxs[0, :].detach().cpu().numpy()
@@ -593,7 +552,8 @@ class IntAwareConceptBottleneckModel(ConceptBottleneckModel):
                     if np.any(cpu_ints[group_concepts] == 1):
                         free_groups[:, group_idx] = 0
                 prev_num_of_interventions = int(
-                    len(self.concept_map) - np.sum(
+                    len(self.concept_map)
+                    - np.sum(
                         free_groups[0, :].detach().cpu().numpy(),
                         axis=-1,
                     ),
@@ -601,22 +561,24 @@ class IntAwareConceptBottleneckModel(ConceptBottleneckModel):
             else:
                 # Otherwise, we are working at the concept-resolution level
                 free_groups = 1 - intervention_idxs
-                prev_num_of_interventions = int(np.max(
-                    np.sum(
-                        intervention_idxs.detach().cpu().numpy(),
+                prev_num_of_interventions = int(
+                    np.max(
+                        np.sum(
+                            intervention_idxs.detach().cpu().numpy(),
+                            axis=-1,
+                        ),
                         axis=-1,
-                    ),
-                    axis=-1,
-                ))
+                    )
+                )
         else:
             # Else, we start from a fresh slate without any previous
             # interventions
             intervention_idxs = torch.zeros(c.shape).to(c.device)
             prev_num_of_interventions = 0
             if self.use_concept_groups:
-                free_groups = torch.ones(
-                    (c.shape[0], len(self.concept_map))
-                ).to(c.device)
+                free_groups = torch.ones((c.shape[0], len(self.concept_map))).to(
+                    c.device
+                )
             else:
                 free_groups = torch.ones(c.shape).to(c.device)
 
@@ -657,21 +619,17 @@ class IntAwareConceptBottleneckModel(ConceptBottleneckModel):
         # be taken into account if we don't do this
         intervention_task_loss = self.loss_task(
             (
-                y_pred_logits if y_pred_logits.shape[-1] > 1
+                y_pred_logits
+                if y_pred_logits.shape[-1] > 1
                 else y_pred_logits.reshape(-1)
             ),
             y,
         )
-        intervention_task_loss = (
-            intervention_task_loss / task_trajectory_weight
-        )
+        intervention_task_loss = intervention_task_loss / task_trajectory_weight
 
         # The mask accuracy is just for logging purposes
         int_mask_accuracy = 0.0 if current_horizon else -1
-        if (
-            self.current_steps.detach().cpu().numpy()[0] <
-            self.rollout_init_steps
-        ):
+        if self.current_steps.detach().cpu().numpy()[0] < self.rollout_init_steps:
             current_horizon = 0
         # Time to perform as many monte carlo rollouts as requested!
         for _ in range(self.num_rollouts):
@@ -702,16 +660,14 @@ class IntAwareConceptBottleneckModel(ConceptBottleneckModel):
                     prev_intervention_idxs=intervention_idxs,
                     competencies=competencies,
                 )
-                int_mask_accuracy += curr_acc/current_horizon
+                int_mask_accuracy += curr_acc / current_horizon
 
                 new_loss = self.loss_interventions(
                     concept_group_scores,
                     target_int_labels,
                 )
                 # Update the next-concept predictor loss
-                intervention_loss += (
-                    discount * new_loss/trajectory_weight
-                )
+                intervention_loss += discount * new_loss / trajectory_weight
 
                 # Update the discount (before the task trajectory loss to
                 # start discounting from the first intervention so that the
@@ -723,10 +679,12 @@ class IntAwareConceptBottleneckModel(ConceptBottleneckModel):
                 # Gumbel softmax
                 if self.intervention_weight == 0:
                     selected_groups = torch.FloatTensor(
-                        np.eye(concept_group_scores.shape[-1])[np.random.choice(
-                            concept_group_scores.shape[-1],
-                            size=concept_group_scores.shape[0]
-                        )]
+                        np.eye(concept_group_scores.shape[-1])[
+                            np.random.choice(
+                                concept_group_scores.shape[-1],
+                                size=concept_group_scores.shape[0],
+                            )
+                        ]
                     ).to(concept_group_scores.device)
                 else:
                     selected_groups = torch.nn.functional.gumbel_softmax(
@@ -748,22 +706,14 @@ class IntAwareConceptBottleneckModel(ConceptBottleneckModel):
                 else:
                     intervention_idxs += selected_groups
 
-                if (
-                    (not self.include_only_last_trajectory_loss) or
-                    (i == (current_horizon - 1))
+                if (not self.include_only_last_trajectory_loss) or (
+                    i == (current_horizon - 1)
                 ):
                     # Then we will also update the task loss with the loss
                     # of performing this intervention!
-                    probs = (
-                        c_pred * (1 - intervention_idxs) +
-                        c * intervention_idxs
-                    )
-                    c_rollout_pred = (
-                        pos_embeddings * torch.unsqueeze(probs, dim=-1) + (
-                            neg_embeddings * (
-                                1 - torch.unsqueeze(probs, dim=-1)
-                            )
-                        )
+                    probs = c_pred * (1 - intervention_idxs) + c * intervention_idxs
+                    c_rollout_pred = pos_embeddings * torch.unsqueeze(probs, dim=-1) + (
+                        neg_embeddings * (1 - torch.unsqueeze(probs, dim=-1))
                     )
                     c_rollout_pred = c_rollout_pred.view(
                         (-1, self.emb_size * self.n_concepts)
@@ -772,33 +722,33 @@ class IntAwareConceptBottleneckModel(ConceptBottleneckModel):
                     rollout_y_loss = self.loss_task(
                         (
                             rollout_y_logits
-                            if rollout_y_logits.shape[-1] > 1 else
-                            rollout_y_logits.reshape(-1)
+                            if rollout_y_logits.shape[-1] > 1
+                            else rollout_y_logits.reshape(-1)
                         ),
                         y,
                     )
                     intervention_task_loss += (
-                        task_discount *
-                        rollout_y_loss / task_trajectory_weight
+                        task_discount * rollout_y_loss / task_trajectory_weight
                     )
 
             if (
                 (
-                    self.current_steps.detach().cpu().numpy()[0] >=
-                        self.rollout_init_steps
+                    self.current_steps.detach().cpu().numpy()[0]
+                    >= self.rollout_init_steps
                 )
             ) and (
-                self.horizon_limit.detach().cpu().numpy()[0] < (
-                    (len(self.concept_map) + 1) if self.use_concept_groups
+                self.horizon_limit.detach().cpu().numpy()[0]
+                < (
+                    (len(self.concept_map) + 1)
+                    if self.use_concept_groups
                     else (self.n_concepts + 1)
                 )
             ):
                 self.horizon_limit *= self.horizon_rate
 
-
-        intervention_loss = intervention_loss/self.num_rollouts
-        intervention_task_loss = intervention_task_loss/self.num_rollouts
-        int_mask_accuracy = int_mask_accuracy/self.num_rollouts
+        intervention_loss = intervention_loss / self.num_rollouts
+        intervention_task_loss = intervention_task_loss / self.num_rollouts
+        int_mask_accuracy = int_mask_accuracy / self.num_rollouts
 
         self.current_steps += 1
         return intervention_loss, intervention_task_loss, int_mask_accuracy
@@ -870,24 +820,21 @@ class IntAwareConceptBottleneckModel(ConceptBottleneckModel):
             intervention_task_loss = 0
             int_mask_accuracy = 0
 
-
         if isinstance(intervention_task_loss, (float, int)):
             intervention_task_loss_scalar = (
                 self.intervention_task_loss_weight * intervention_task_loss
             )
         else:
             intervention_task_loss_scalar = (
-                self.intervention_task_loss_weight *
-                intervention_task_loss.detach()
+                self.intervention_task_loss_weight * intervention_task_loss.detach()
             )
 
         if isinstance(intervention_loss, (float, int)):
-            intervention_loss_scalar = \
-                self.intervention_weight * intervention_loss
+            intervention_loss_scalar = self.intervention_weight * intervention_loss
         else:
-            intervention_loss_scalar = \
+            intervention_loss_scalar = (
                 self.intervention_weight * intervention_loss.detach()
-
+            )
 
         # Finally, compute the concept loss
         concept_loss = self._compute_concept_loss(
@@ -897,13 +844,12 @@ class IntAwareConceptBottleneckModel(ConceptBottleneckModel):
         if isinstance(concept_loss, (float, int)):
             concept_loss_scalar = self.concept_loss_weight * concept_loss
         else:
-            concept_loss_scalar = \
-                self.concept_loss_weight * concept_loss.detach()
+            concept_loss_scalar = self.concept_loss_weight * concept_loss.detach()
 
         loss = (
-            self.concept_loss_weight * concept_loss +
-            self.intervention_weight * intervention_loss +
-            self.intervention_task_loss_weight * intervention_task_loss
+            self.concept_loss_weight * concept_loss
+            + self.intervention_weight * intervention_loss
+            + self.intervention_task_loss_weight * intervention_task_loss
         )
 
         loss += self._extra_losses(
@@ -933,14 +879,13 @@ class IntAwareConceptBottleneckModel(ConceptBottleneckModel):
             "mask_accuracy": int_mask_accuracy,
             "concept_loss": concept_loss_scalar,
             "intervention_task_loss": intervention_task_loss_scalar,
-            "task_loss": 0, # As the actual task loss is included above!
+            "task_loss": 0,  # As the actual task loss is included above!
             "intervention_loss": intervention_loss_scalar,
             "loss": loss.detach() if not isinstance(loss, float) else loss,
             "avg_c_y_acc": (c_accuracy + y_accuracy) / 2,
             "horizon_limit": self.horizon_limit.detach().cpu().numpy()[0],
         }
-        result["current_steps"] = \
-            self.current_steps.detach().cpu().numpy()[0]
+        result["current_steps"] = self.current_steps.detach().cpu().numpy()[0]
         if self.top_k_accuracy is not None:
             y_true = y.reshape(-1).cpu().detach()
             y_pred = y_logits.cpu().detach()
@@ -952,8 +897,9 @@ class IntAwareConceptBottleneckModel(ConceptBottleneckModel):
                     k=top_k_val,
                     labels=labels,
                 )
-                result[f'y_top_{top_k_val}_accuracy'] = y_top_k_accuracy
+                result[f"y_top_{top_k_val}_accuracy"] = y_top_k_accuracy
         return loss, result
+
 
 class IntAwareConceptEmbeddingModel(
     ConceptEmbeddingModel,
@@ -967,43 +913,35 @@ class IntAwareConceptEmbeddingModel(
         training_intervention_prob=0.25,
         embedding_activation="leakyrelu",
         concept_loss_weight=1,
-
         c2y_model=None,
         c2y_layers=None,
         c_extractor_arch=utils.wrap_pretrained_model(resnet50),
         output_latent=False,
-
         optimizer="adam",
         momentum=0.9,
         learning_rate=0.01,
         weight_decay=4e-05,
         weight_loss=None,
         task_class_weights=None,
-
         active_intervention_values=None,
         inactive_intervention_values=None,
         intervention_policy=None,
         output_interventions=False,
-
         top_k_accuracy=None,
-
         intervention_task_discount=1.1,
         intervention_weight=5,
         concept_map=None,
         use_concept_groups=True,
-
         rollout_init_steps=0,
         int_model_layers=None,
         int_model_use_bn=True,
         num_rollouts=1,
-
         # Parameters regarding how we select how many concepts to intervene on
         # in the horizon of a current trajectory (this is the lenght of the
         # trajectory)
         max_horizon=6,
         initial_horizon=2,
         horizon_rate=1.005,
-
         # Experimental/debugging arguments
         intervention_discount=1,
         include_only_last_trajectory_loss=True,
@@ -1011,15 +949,13 @@ class IntAwareConceptEmbeddingModel(
         intervention_task_loss_weight=1,
     ):
         assert task_loss_weight == 0, (
-            f'IntCEM only supports task_loss_weight=0 as this loss is included '
-            f'as part of the trajectory loss. It was given task_loss_weight = '
-            f'{task_loss_weight}'
+            f"IntCEM only supports task_loss_weight=0 as this loss is included "
+            f"as part of the trajectory loss. It was given task_loss_weight = "
+            f"{task_loss_weight}"
         )
         self.num_rollouts = num_rollouts
         if concept_map is None:
-            concept_map = dict([
-                (i, [i]) for i in range(n_concepts)
-            ])
+            concept_map = dict([(i, [i]) for i in range(n_concepts)])
         self.concept_map = concept_map
         if len(concept_map) == n_concepts:
             use_concept_groups = False
@@ -1052,25 +988,22 @@ class IntAwareConceptEmbeddingModel(
             use_concept_groups=use_concept_groups,
         )
         if concept_map is None:
-            concept_map = dict([
-                (i, [i]) for i in range(n_concepts)
-            ])
+            concept_map = dict([(i, [i]) for i in range(n_concepts)])
         self.concept_map = concept_map
 
         # Else we construct it here directly
-        units = [
-            n_concepts * emb_size + # Bottleneck
-            n_concepts # Prev interventions
-        ] + (int_model_layers or [256, 128]) + [
-            len(self.concept_map) if self.use_concept_groups else n_concepts
-        ]
+        units = (
+            [n_concepts * emb_size + n_concepts]  # Bottleneck  # Prev interventions
+            + (int_model_layers or [256, 128])
+            + [len(self.concept_map) if self.use_concept_groups else n_concepts]
+        )
         layers = []
         for i in range(1, len(units)):
             if int_model_use_bn:
                 layers.append(
-                    torch.nn.BatchNorm1d(num_features=units[i-1]),
+                    torch.nn.BatchNorm1d(num_features=units[i - 1]),
                 )
-            layers.append(torch.nn.Linear(units[i-1], units[i]))
+            layers.append(torch.nn.Linear(units[i - 1], units[i]))
             if i != len(units) - 1:
                 layers.append(torch.nn.LeakyReLU())
         self.concept_rank_model = torch.nn.Sequential(*layers)
@@ -1090,8 +1023,7 @@ class IntAwareConceptEmbeddingModel(
         self.intervention_weight = intervention_weight
         self.loss_interventions = torch.nn.CrossEntropyLoss()
         self.max_horizon = max_horizon
-        self.include_only_last_trajectory_loss = \
-            include_only_last_trajectory_loss
+        self.include_only_last_trajectory_loss = include_only_last_trajectory_loss
         self.intervention_task_loss_weight = intervention_task_loss_weight
         self.use_concept_groups = use_concept_groups
         self._horizon_distr = lambda init, end: np.random.randint(
@@ -1109,9 +1041,10 @@ class IntAwareConceptEmbeddingModel(
         train=False,
         competencies=None,
     ):
-        if train and (self.training_intervention_prob != 0) and (
-            (c_true is not None) and
-            (intervention_idxs is None)
+        if (
+            train
+            and (self.training_intervention_prob != 0)
+            and ((c_true is not None) and (intervention_idxs is None))
         ):
             # Then we will probabilistically intervene in some concepts
             if self.use_concept_groups:

@@ -1,4 +1,4 @@
-'''
+"""
 Adapted from https://github.com/mateoespinosa/concept-quality
 
 See https://github.com/deepmind/dsprites-dataset/blob/master/dsprites_reloading_example.ipynb
@@ -6,7 +6,7 @@ for a nice overview.
 
 6 latent factors: color, shape, scale, rotation and position (x and y)
 'latents_sizes': [1,  3,  6, 40, 32, 32]
-'''
+"""
 
 import numpy as np
 
@@ -17,11 +17,11 @@ from .latentFactorData import LatentFactorData, get_task_data
 ################################################################################
 
 CONCEPT_NAMES = [
-    'shape',
-    'scale',
-    'rotation',
-    'x_pos',
-    'y_pos',
+    "shape",
+    "scale",
+    "rotation",
+    "x_pos",
+    "y_pos",
 ]
 
 CONCEPT_N_VALUES = [
@@ -37,16 +37,17 @@ CONCEPT_N_VALUES = [
 ## DATASET LOADER
 ################################################################################
 
+
 class dSprites(LatentFactorData):
 
     def __init__(
         self,
         dataset_path,
-        task='shape_scale_small_skip',
+        task="shape_scale_small_skip",
         train_size=0.85,
         random_state=None,
     ):
-        '''
+        """
         :param str dataset_path: path to the .npz dsprites file.
         :param Or[
             str,
@@ -59,15 +60,15 @@ class dSprites(LatentFactorData):
             respectively, and produces a tuple of three np.ndarrays
             (x_data, c_data, y_data) corresponding to the task's
             samples, ground truth concept values, and labels, respectively.
-        '''
+        """
 
         # Note: we exclude the trivial 'color' concept
         if isinstance(task, str):
             if task not in DSPRITES_TASKS:
                 raise ValueError(
-                    f'If the given task is a string, then it is expected to be '
-                    f'the name of a pre-defined task in '
-                    f'{list(DSPRITES_TASKS.keys())}. However, we were given '
+                    f"If the given task is a string, then it is expected to be "
+                    f"the name of a pre-defined task in "
+                    f"{list(DSPRITES_TASKS.keys())}. However, we were given "
                     f'"{task}" which is not a known task.'
                 )
             task_fn = DSPRITES_TASKS[task]
@@ -86,9 +87,9 @@ class dSprites(LatentFactorData):
     def _load_x_c_data(self):
         # Load dataset
         dataset_zip = np.load(self.dataset_path)
-        x_data = dataset_zip['imgs']
+        x_data = dataset_zip["imgs"]
         x_data = np.expand_dims(x_data, axis=-1)
-        c_data = dataset_zip['latents_classes']
+        c_data = dataset_zip["latents_classes"]
         c_data = c_data[:, 1:]  # Remove color concept
         return x_data, c_data
 
@@ -96,6 +97,7 @@ class dSprites(LatentFactorData):
 ################################################################################
 # TASK DEFINITIONS
 ################################################################################
+
 
 def cardinality_encoding(card_group_1, card_group_2):
     result_to_encoding = {}
@@ -106,9 +108,9 @@ def cardinality_encoding(card_group_1, card_group_2):
 
 
 def small_skip_ranges_filter_fn(concept):
-    '''
+    """
     Filter out certain values only
-    '''
+    """
     ranges = [
         list(range(3)),
         list(range(6)),
@@ -116,9 +118,7 @@ def small_skip_ranges_filter_fn(concept):
         list(range(0, 32, 2)),
         list(range(0, 32, 2)),
     ]
-    return all([
-        (concept[i] in ranges[i]) for i in range(len(ranges))
-    ])
+    return all([(concept[i] in ranges[i]) for i in range(len(ranges))])
 
 
 def get_shape_full(x_data, c_data):
@@ -142,9 +142,7 @@ def get_shape_scale_full(x_data, c_data):
     return get_task_data(
         x_data=x_data,
         c_data=c_data,
-        label_fn=lambda c_data: (
-            c_data[0] * CONCEPT_N_VALUES[1] + c_data[1]
-        ),
+        label_fn=lambda c_data: (c_data[0] * CONCEPT_N_VALUES[1] + c_data[1]),
     )
 
 

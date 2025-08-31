@@ -14,6 +14,7 @@ from xai_concept_leakage.train.utils import WrapperModule
 ## Behavioral Cloning Policy Definition
 ##########################
 
+
 class BehavioralLearningPolicy(InterventionPolicy):
     # Behavioral Learning Policy
     def __init__(
@@ -42,11 +43,11 @@ class BehavioralLearningPolicy(InterventionPolicy):
         accelerator="auto",
         devices="auto",
         rerun=False,
-        **kwargs
+        **kwargs,
     ):
         self.n_tasks = n_tasks
         self.n_concepts = n_concepts
-        max_horizon = max_horizon or int(np.ceil(n_concepts/2))
+        max_horizon = max_horizon or int(np.ceil(n_concepts / 2))
         self.num_groups_intervened = num_groups_intervened
         self.concept_group_map = concept_group_map
         self.group_based = group_based
@@ -57,8 +58,7 @@ class BehavioralLearningPolicy(InterventionPolicy):
         }
         self.emb_size = emb_size
         units = [
-            n_concepts * self.emb_size + # Bottleneck
-            n_concepts # Prev interventions
+            n_concepts * self.emb_size + n_concepts  # Bottleneck  # Prev interventions
         ] + [
             256,
             128,
@@ -66,12 +66,12 @@ class BehavioralLearningPolicy(InterventionPolicy):
         ]
         layers = []
         for i in range(1, len(units)):
-            layers.append(torch.nn.Linear(units[i-1], units[i]))
+            layers.append(torch.nn.Linear(units[i - 1], units[i]))
             if i != len(units) - 1:
                 layers.append(torch.nn.LeakyReLU())
         self.behavior_cloner = WrapperModule(
             model=torch.nn.Sequential(*layers),
-            n_tasks=self.n_concepts, # One output per task
+            n_tasks=self.n_concepts,  # One output per task
             momentum=0.9,
             learning_rate=0.01,
             weight_decay=4e-05,
@@ -129,8 +129,8 @@ class BehavioralLearningPolicy(InterventionPolicy):
         # Shape is [B, n_concepts, emb_size]
         prob = prev_interventions * c + (1 - prev_interventions) * prob
         embeddings = (
-            np.expand_dims(prob, axis=-1) * pos_embeddings +
-            (1 - np.expand_dims(prob, axis=-1)) * neg_embeddings
+            np.expand_dims(prob, axis=-1) * pos_embeddings
+            + (1 - np.expand_dims(prob, axis=-1)) * neg_embeddings
         )
         # Zero out embeddings of previously intervened concepts
         if use_concept_groups:
@@ -140,11 +140,14 @@ class BehavioralLearningPolicy(InterventionPolicy):
             for group_idx, (_, group_concepts) in enumerate(
                 self.concept_group_map.items()
             ):
-                available_groups[:, group_idx] = np.logical_not(np.any(
-                    prev_interventions[:, group_concepts] > (1/len(self.concept_group_map)),
-                ))
+                available_groups[:, group_idx] = np.logical_not(
+                    np.any(
+                        prev_interventions[:, group_concepts]
+                        > (1 / len(self.concept_group_map)),
+                    )
+                )
         else:
-            available_groups = (1 - prev_interventions)
+            available_groups = 1 - prev_interventions
 
         emb_size = pos_embeddings.shape[-1]
         return np.concatenate(
@@ -154,7 +157,6 @@ class BehavioralLearningPolicy(InterventionPolicy):
             ],
             axis=-1,
         )
-
 
     def _generate_behavioral_cloning_dataset(
         self,
@@ -188,7 +190,7 @@ class BehavioralLearningPolicy(InterventionPolicy):
         x_train = torch.FloatTensor(x_train)
         c_train = torch.FloatTensor(c_train)
         y_train = torch.LongTensor(y_train)
-        for sample_idx in tqdm(range(dataset_size//compute_batch_size)):
+        for sample_idx in tqdm(range(dataset_size // compute_batch_size)):
             # Sample an initial mask to start with
             competencies = None
             initially_selected = np.random.randint(
@@ -201,19 +203,14 @@ class BehavioralLearningPolicy(InterventionPolicy):
                 replace=False,
                 size=compute_batch_size,
             )
-            prev_interventions = np.zeros(
-                (len(selected_samples), self.n_concepts)
-            )
+            prev_interventions = np.zeros((len(selected_samples), self.n_concepts))
             for sample_idx in range(prev_interventions.shape[0]):
                 prev_interventions[
                     sample_idx,
                     np.random.choice(
-                        self.n_concepts,
-                        size=initially_selected,
-                        replace=False
+                        self.n_concepts, size=initially_selected, replace=False
                     ),
                 ] = 1
-
 
             outputs = self.cbm._forward(
                 x_train[selected_samples],
@@ -286,21 +283,27 @@ class BehavioralLearningPolicy(InterventionPolicy):
         else:
             mask = prev_interventions.copy()
 
-
-        scores = torch.softmax(
-             self.behavior_cloner(torch.FloatTensor(
-                 self._compute_model_input(
-                    prob=pred_c.detach().cpu().numpy(),
-                    pos_embeddings=pos_embeddings.detach().cpu().numpy(),
-                    neg_embeddings=neg_embeddings.detach().cpu().numpy(),
-                    c=c.detach().cpu().numpy(),
-                    competencies=competencies,
-                    prev_interventions=prev_interventions,
-                    use_concept_groups=False,
-                )
-             )),
-            dim=-1
-        ).detach().cpu().numpy()
+        scores = (
+            torch.softmax(
+                self.behavior_cloner(
+                    torch.FloatTensor(
+                        self._compute_model_input(
+                            prob=pred_c.detach().cpu().numpy(),
+                            pos_embeddings=pos_embeddings.detach().cpu().numpy(),
+                            neg_embeddings=neg_embeddings.detach().cpu().numpy(),
+                            c=c.detach().cpu().numpy(),
+                            competencies=competencies,
+                            prev_interventions=prev_interventions,
+                            use_concept_groups=False,
+                        )
+                    )
+                ),
+                dim=-1,
+            )
+            .detach()
+            .cpu()
+            .numpy()
+        )
 
         if prev_interventions is not None:
             # Then zero out the scores of the concepts that have been previously
@@ -326,9 +329,7 @@ class BehavioralLearningPolicy(InterventionPolicy):
                     group_names.append(key)
                 # Sort them out
                 best_group_scores = np.argsort(-group_scores, axis=-1)
-                for selected_group in (
-                    best_group_scores[: self.num_groups_intervened]
-                ):
+                for selected_group in best_group_scores[: self.num_groups_intervened]:
                     mask[
                         sample_idx,
                         self.concept_group_map[group_names[selected_group]],

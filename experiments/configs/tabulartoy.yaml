@@ -1,5 +1,5 @@
 trials: 5
-results_dir: results/tabulartoy_25_10k_models/ 
+results_dir: results/tabulartoy_25_10k_models/
 
 shared_params:
   # Dataset Configuration
@@ -11,7 +11,7 @@ shared_params:
     considered_concepts: ['0', '1', '2']
     sampling_percent: 1
     test_subsampling: 1
-    
+
 
   # Intervention evaluation
   intervention_config:
@@ -27,22 +27,22 @@ shared_params:
   skip_repr_evaluation: True #Set to False to compute OIS, NIS and CAS
   max_epochs: 200
   concept_loss_weight: 1
-  learning_rate: 0.001 
+  learning_rate: 0.001
   bool: False
   sigmoidal_prob: False
   hidden_size: 64
   dropout_prob: 0.2
   all_dropout: False
-  
+
   learning_rate_c2y: 0.1
-  optimizer_c2y: sgd 
-  c2y_max_epochs: 20 
+  optimizer_c2y: sgd
+  c2y_max_epochs: 20
   linear_c2y: True
 
   n_hidden: 64
   emb_size: 16
 
-  weight_loss: True 
+  weight_loss: True
   top_k_accuracy: null
   save_model: True
   patience: 15
@@ -55,9 +55,9 @@ shared_params:
   early_stopping_mode: min
   early_stopping_delta: 0.0
   check_val_every_n_epoch: 1
-  momentum: 0.9  
+  momentum: 0.9
 
-  
+
 
 runs:
 # HARD:
@@ -66,7 +66,7 @@ runs:
     #   bool: True
     #   extra_dims: 0
     #   sigmoidal_extra_capacity: False
-    #   sigmoidal_prob: True    
+    #   sigmoidal_prob: True
 
  # SOFT:
     - architecture: 'ConceptBottleneckModel'
@@ -92,10 +92,10 @@ runs:
     #   sigmoidal_prob: False
     #   concept_loss_weight: 1.
 
-# CEMs: 
+# CEMs:
     # - architecture: 'ConceptEmbeddingModel'
     #   run_name: "CEM_10_pint025_emb16"
     #   sigmoidal_prob: True
     #   training_intervention_prob: 0.25
     #   embedding_activation: "leakyrelu"
-    #   concept_loss_weight: 10   
+    #   concept_loss_weight: 10

@@ -3,13 +3,16 @@ import torch
 
 from pytorch_lightning import seed_everything
 
+
 def generate_xor_data(size):
     # sample from normal distribution
     x = np.random.uniform(0, 1, (size, 2))
-    c = np.stack([
-        x[:, 0] > 0.5,
-        x[:, 1] > 0.5,
-    ]).T
+    c = np.stack(
+        [
+            x[:, 0] > 0.5,
+            x[:, 1] > 0.5,
+        ]
+    ).T
     y = np.logical_xor(c[:, 0], c[:, 1])
 
     x = torch.FloatTensor(x)
@@ -23,22 +26,26 @@ def generate_trig_data(size):
     x, y, z = h[:, 0], h[:, 1], h[:, 2]
 
     # raw features
-    input_features = np.stack([
-        np.sin(x) + x,
-        np.cos(x) + x,
-        np.sin(y) + y,
-        np.cos(y) + y,
-        np.sin(z) + z,
-        np.cos(z) + z,
-        x ** 2 + y ** 2 + z ** 2,
-    ]).T
+    input_features = np.stack(
+        [
+            np.sin(x) + x,
+            np.cos(x) + x,
+            np.sin(y) + y,
+            np.cos(y) + y,
+            np.sin(z) + z,
+            np.cos(z) + z,
+            x**2 + y**2 + z**2,
+        ]
+    ).T
 
     # concepts
-    concepts = np.stack([
-        x > 0,
-        y > 0,
-        z > 0,
-    ]).T
+    concepts = np.stack(
+        [
+            x > 0,
+            y > 0,
+            z > 0,
+        ]
+    ).T
 
     # task
     downstream_task = (x + y + z) > 1
@@ -56,17 +63,20 @@ def generate_dot_data(size):
     v2 = np.ones(emb_size)
     v3 = np.random.randn(size, emb_size) * 2
     v4 = -np.ones(emb_size)
-    x = np.hstack([v1+v3, v1-v3])
-    c = np.stack([
-        np.dot(v1, v2).ravel() > 0,
-        np.dot(v3, v4).ravel() > 0,
-    ]).T
-    y = ((v1*v3).sum(axis=-1) > 0).astype(np.int64)
+    x = np.hstack([v1 + v3, v1 - v3])
+    c = np.stack(
+        [
+            np.dot(v1, v2).ravel() > 0,
+            np.dot(v3, v4).ravel() > 0,
+        ]
+    ).T
+    y = ((v1 * v3).sum(axis=-1) > 0).astype(np.int64)
 
     x = torch.FloatTensor(x)
     c = torch.FloatTensor(c)
     y = torch.Tensor(y)
     return x, c, y
+
 
 class SyntheticGenerator(object):
     def __init__(self, dataset_name):
@@ -96,7 +106,7 @@ class SyntheticGenerator(object):
         ):
             seed_everything(seed)
 
-            dataset_size = config.get('dataset_size', 3000)
+            dataset_size = config.get("dataset_size", 3000)
             batch_size = config["batch_size"]
             x, c, y = generate_data(int(dataset_size * 0.7))
             train_data = torch.utils.data.TensorDataset(x, y, c)
@@ -119,7 +129,7 @@ class SyntheticGenerator(object):
                 batch_size=batch_size,
             )
 
-            if config.get('weight_loss', False):
+            if config.get("weight_loss", False):
                 attribute_count = np.zeros((num_concepts,))
                 samples_seen = 0
                 for _, (_, y, c) in enumerate(train_dl):
@@ -139,7 +149,9 @@ class SyntheticGenerator(object):
                 imbalance,
                 (num_concepts, n_tasks, concept_group_map),
             )
+
         self.generate_data = _data_loader
+
 
 def get_synthetic_num_features(dataset_name):
     dataset_name_lower = dataset_name.lower()
@@ -150,6 +162,7 @@ def get_synthetic_num_features(dataset_name):
     elif dataset_name_lower in ["vector", "dot"]:
         return 4
     raise ValueError(f"Unsupported dataset name {dataset_name}")
+
 
 def get_synthetic_data_loader(dataset_name):
     return SyntheticGenerator(dataset_name)

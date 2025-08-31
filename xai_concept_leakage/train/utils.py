@@ -13,7 +13,6 @@ from pathlib import Path
 from torchvision.models import densenet121
 
 
-
 def extract_dims(train_dl):
     x_train, _, c_train = next(iter(train_dl))
     y_train = torch.cat([batch[1] for batch in train_dl])
@@ -22,39 +21,44 @@ def extract_dims(train_dl):
     if len(y_train.shape) == 1:
         n_tasks = len(torch.unique(y_train))
     else:
-        n_tasks = y_train.shape[1]         
+        n_tasks = y_train.shape[1]
     return input_dim, n_concepts, n_tasks
+
 
 def compute_task_class_weights(train_dl):
     _, y_train, _ = next(iter(train_dl))
     y_mean = y_train.type(torch.float32).mean(axis=0).item()
-    task_class_weights = torch.Tensor([1/(1-y_mean), 1/y_mean])
+    task_class_weights = torch.Tensor([1 / (1 - y_mean), 1 / y_mean])
     task_class_weights /= torch.min(task_class_weights)
     return task_class_weights
+
 
 def compute_concept_class_weights(train_dl):
     _, _, c_train = next(iter(train_dl))
     c_mean = c_train.type(torch.float32).mean(axis=0)
-    concept_class_weights = 1/c_mean
+    concept_class_weights = 1 / c_mean
     concept_class_weights /= torch.min(concept_class_weights)
     return concept_class_weights
-     
+
 
 def save_train_val_scores_n_losses(save_path_monitoring, cb_loss):
     print("\nSaving scores and losses to " + save_path_monitoring)
     np.save(save_path_monitoring + "_train_losses", cb_loss.train_losses)
     np.save(save_path_monitoring + "_val_losses", cb_loss.val_losses)
-    np.save(save_path_monitoring + "_train_y_acc", cb_loss.train_y_accuracies)  
+    np.save(save_path_monitoring + "_train_y_acc", cb_loss.train_y_accuracies)
     np.save(save_path_monitoring + "_val_y_acc", cb_loss.val_y_accuracies)
     np.save(save_path_monitoring + "_train_c_acc", cb_loss.train_c_accuracies)
     np.save(save_path_monitoring + "_val_c_acc", cb_loss.val_c_accuracies)
 
-def save_train_val_scores_n_losses_indep(save_path_monitoring, cb_loss, x2c = False, c2y = False):
+
+def save_train_val_scores_n_losses_indep(
+    save_path_monitoring, cb_loss, x2c=False, c2y=False
+):
     if x2c:
         print("\nSaving x2c scores and losses to " + save_path_monitoring)
         np.save(save_path_monitoring + "_train_x2c_losses", cb_loss.train_losses)
         np.save(save_path_monitoring + "_val_x2c_losses", cb_loss.val_losses)
-        np.save(save_path_monitoring + "_train_c_acc", cb_loss.train_c_accuracies)  
+        np.save(save_path_monitoring + "_train_c_acc", cb_loss.train_c_accuracies)
         np.save(save_path_monitoring + "_val_c_acc", cb_loss.val_c_accuracies)
     elif c2y:
         print("\nSaving c2y scores and losses to " + save_path_monitoring)
@@ -66,49 +70,50 @@ def save_train_val_scores_n_losses_indep(save_path_monitoring, cb_loss, x2c = Fa
         pass
 
 
-
 class LossTracker(Callback):
-    def __init__(self, black_box = False):
+    def __init__(self, black_box=False):
         super().__init__()
         self.black_box = black_box
-            
+
         self.train_loss_temp = []
         self.train_y_accuracy_temp = []
-        self.train_losses = []    
-        self.train_y_accuracies = [] 
-        
+        self.train_losses = []
+        self.train_y_accuracies = []
+
         self.val_loss_temp = []
         self.val_y_accuracy_temp = []
         self.val_losses = []
         self.val_y_accuracies = []
-        
+
         if not self.black_box:
             self.train_c_accuracy_temp = []
             self.val_c_accuracy_temp = []
             self.train_c_accuracies = []
             self.val_c_accuracies = []
-            
+
     def _avg_of_empty(self, vec):
         if vec == []:
-            return 1.
+            return 1.0
         else:
             return np.mean(vec)
-        
+
     def on_train_batch_end(self, trainer, module, outputs, batch, batch_idx):
-        self.train_loss_temp.append(outputs['loss'].item())
-        self.train_y_accuracy_temp.append(outputs['log']['y_accuracy'])
+        self.train_loss_temp.append(outputs["loss"].item())
+        self.train_y_accuracy_temp.append(outputs["log"]["y_accuracy"])
         if not self.black_box:
-            self.train_c_accuracy_temp.append(outputs['log']['c_accuracy'])
-            
-    def on_validation_batch_end(self, trainer, module, outputs, batch, batch_idx, another_id):
-        self.val_loss_temp.append(outputs['val_loss'].item())
-        self.val_y_accuracy_temp.append(outputs['val_y_accuracy'])
+            self.train_c_accuracy_temp.append(outputs["log"]["c_accuracy"])
+
+    def on_validation_batch_end(
+        self, trainer, module, outputs, batch, batch_idx, another_id
+    ):
+        self.val_loss_temp.append(outputs["val_loss"].item())
+        self.val_y_accuracy_temp.append(outputs["val_y_accuracy"])
         if not self.black_box:
-            self.val_c_accuracy_temp.append(outputs['val_c_accuracy'])
-            
+            self.val_c_accuracy_temp.append(outputs["val_c_accuracy"])
+
     def on_train_epoch_end(self, trainer, pl_module):
-#         print("self.train_y_accuracy_temp:")
-#         print(self.train_y_accuracy_temp)
+        #         print("self.train_y_accuracy_temp:")
+        #         print(self.train_y_accuracy_temp)
         mean_loss_epoch = self._avg_of_empty(self.train_loss_temp)
         self.train_losses.append(mean_loss_epoch)
         mean_y_accuracy = self._avg_of_empty(self.train_y_accuracy_temp)
@@ -116,38 +121,37 @@ class LossTracker(Callback):
         self.train_loss_temp = []
         self.train_y_accuracy_temp = []
         if not self.black_box:
-#             print("self.train_c_accuracy_temp:")
-#             print(self.train_c_accuracy_temp)
+            #             print("self.train_c_accuracy_temp:")
+            #             print(self.train_c_accuracy_temp)
             mean_c_accuracy = self._avg_of_empty(self.train_c_accuracy_temp)
             self.train_c_accuracies.append(mean_c_accuracy)
-            self.train_c_accuracy_temp = []    
-            
+            self.train_c_accuracy_temp = []
+
     def on_validation_epoch_end(self, trainer, pl_module):
         mean_loss_epoch = self._avg_of_empty(self.val_loss_temp)
         self.val_losses.append(mean_loss_epoch)
         mean_y_accuracy = self._avg_of_empty(self.val_y_accuracy_temp)
         self.val_y_accuracies.append(mean_y_accuracy)
         self.val_loss_temp = []
-        self.val_y_accuracy_temp = []        
+        self.val_y_accuracy_temp = []
         if not self.black_box:
-#             print("self.val_c_accuracy_temp:")
-#             print(self.val_c_accuracy_temp)
+            #             print("self.val_c_accuracy_temp:")
+            #             print(self.val_c_accuracy_temp)
             mean_c_accuracy = self._avg_of_empty(self.val_c_accuracy_temp)
             self.val_c_accuracies.append(mean_c_accuracy)
             self.val_c_accuracy_temp = []
-
-
-
 
 
 ################################################################################
 ## HELPER FUNCTIONS
 ################################################################################
 
+
 def _save_result(fun, kwargs, output_filepath):
     result = fun(**kwargs)
     joblib.dump(result, output_filepath)
     return result
+
 
 def execute_and_save(
     fun,
@@ -162,7 +166,7 @@ def execute_and_save(
     )
     if (not rerun) and os.path.exists(output_filepath):
         return joblib.load(output_filepath)
-    context = multiprocessing.get_context('spawn')
+    context = multiprocessing.get_context("spawn")
     p = context.Process(
         target=_save_result,
         kwargs=dict(
@@ -174,11 +178,10 @@ def execute_and_save(
     p.start()
     p.join()
     if p.exitcode:
-        raise ValueError(
-            f'Subprocess failed!'
-        )
+        raise ValueError(f"Subprocess failed!")
     p.kill()
     return joblib.load(output_filepath)
+
 
 def load_call(
     function,
@@ -196,13 +199,13 @@ def load_call(
     outputs = []
     for key in keys:
         if key.endswith("_" + run_name):
-            real_key = key[:len(run_name) + 1]
+            real_key = key[: len(run_name) + 1]
         else:
             real_key = key
         rerun = rerun or (
             os.environ.get(f"RERUN_METRIC_{real_key.upper()}", "0") == "1"
         )
-        if (real_key in old_results):
+        if real_key in old_results:
             outputs.append(old_results[real_key])
         else:
             rerun = True
@@ -260,12 +263,12 @@ def compute_bin_accuracy(y_pred, y_true):
         y_auc = sklearn.metrics.roc_auc_score(
             y_true,
             y_probs,
-            multi_class='ovo',
+            multi_class="ovo",
         )
     except:
         y_auc = 0
     try:
-        y_f1 = sklearn.metrics.f1_score(y_true, y_pred, average='macro')
+        y_f1 = sklearn.metrics.f1_score(y_true, y_pred, average="macro")
     except:
         y_f1 = 0
     return (y_accuracy, y_auc, y_f1)
@@ -291,7 +294,7 @@ def compute_accuracy(
         y_auc = sklearn.metrics.roc_auc_score(
             y_true,
             y_probs,
-            multi_class='ovo',
+            multi_class="ovo",
         )
     except:
         y_auc = 0.0
@@ -309,18 +312,21 @@ def wrap_pretrained_model(c_extractor_arch, pretrain_model=True):
                         1024,
                         output_dim,
                     )
-                elif hasattr(model, 'fc'):
+                elif hasattr(model, "fc"):
                     model.fc = torch.nn.Linear(512, output_dim)
         except:
             model = c_extractor_arch(
                 output_dim=output_dim,
             )
         return model
+
     return _result_x2c_fun
+
 
 ################################################################################
 ## HELPER CLASSES
 ################################################################################
+
 
 class EmptyEnter(object):
     def __init__(self):
@@ -342,7 +348,7 @@ class ActivationMonitorWrapper:
         single_frequency_epochs,
         output_dir,
         test_dl,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(
             **kwargs,
@@ -355,6 +361,7 @@ class ActivationMonitorWrapper:
         self.epoch = 0
         self.trainer = trainer
         self.model = model
+
     @property
     def current_epoch(self):
         return self.trainer.current_epoch
@@ -395,21 +402,21 @@ class ActivationMonitorWrapper:
         np.save(
             os.path.join(
                 self.output_dir,
-                f'test_embedding_semantics_on_epoch_{self.epoch}.npy',
+                f"test_embedding_semantics_on_epoch_{self.epoch}.npy",
             ),
             out_semantics,
         )
         np.save(
             os.path.join(
                 self.output_dir,
-                f'test_embedding_vectors_on_epoch_{self.epoch}.npy',
+                f"test_embedding_vectors_on_epoch_{self.epoch}.npy",
             ),
             out_embs,
         )
         np.save(
             os.path.join(
                 self.output_dir,
-                f'test_model_output_on_epoch_{self.epoch}.npy',
+                f"test_model_output_on_epoch_{self.epoch}.npy",
             ),
             out_acts,
         )
@@ -452,9 +459,7 @@ class WrapperModule(pl.LightningModule):
         else:
             # Then we assume the model already outputs a sigmoidal vector
             self.sig = lambda x: x
-            self.acc_sig = (
-                torch.nn.Sigmoid() if self.binary_output else lambda x: x
-            )
+            self.acc_sig = torch.nn.Sigmoid() if self.binary_output else lambda x: x
 
     def forward(self, x):
         return self.sig(self.model(x))
@@ -483,8 +488,10 @@ class WrapperModule(pl.LightningModule):
             "y_f1": y_f1,
             "loss": loss.detach(),
         }
-        if (self.top_k_accuracy is not None) and (self.n_tasks > 2) and (
-            not self.binary_output
+        if (
+            (self.top_k_accuracy is not None)
+            and (self.n_tasks > 2)
+            and (not self.binary_output)
         ):
             y_true = y.reshape(-1).cpu().detach()
             y_pred = y_logits.cpu().detach()
@@ -497,7 +504,7 @@ class WrapperModule(pl.LightningModule):
                         k=top_k_val,
                         labels=labels,
                     )
-                result[f'y_top_{top_k_val}_accuracy'] = y_top_k_accuracy
+                result[f"y_top_{top_k_val}_accuracy"] = y_top_k_accuracy
         return loss, result
 
     def training_step(self, batch, batch_no):
@@ -507,10 +514,10 @@ class WrapperModule(pl.LightningModule):
         return {
             "loss": loss,
             "log": {
-                "y_accuracy": result['y_accuracy'],
-                "y_auc": result['y_auc'],
-                "y_f1": result['y_f1'],
-                "loss": result['loss'],
+                "y_accuracy": result["y_accuracy"],
+                "y_auc": result["y_auc"],
+                "y_f1": result["y_f1"],
+                "loss": result["loss"],
             },
         }
 
@@ -518,16 +525,13 @@ class WrapperModule(pl.LightningModule):
         loss, result = self._run_step(batch, batch_no, train=False)
         for name, val in result.items():
             self.log("val_" + name, val, prog_bar=("accuracy" in name))
-        return {
-            "val_" + key: val
-            for key, val in result.items()
-        }
+        return {"val_" + key: val for key, val in result.items()}
 
     def test_step(self, batch, batch_no):
         loss, result = self._run_step(batch, batch_no, train=False)
         for name, val in result.items():
             self.log("test_" + name, val, prog_bar=True)
-        return result['loss']
+        return result["loss"]
 
     def configure_optimizers(self):
         if self.optimizer_name.lower() == "adam":
