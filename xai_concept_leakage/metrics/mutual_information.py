@@ -1,9 +1,28 @@
 import numpy as np
-import torch
 
 ##################################################################################################
 ### Helper functions:
 ##################################################################################################
+
+
+def to_numpy(x, copy=True):
+    if isinstance(x, np.ndarray):
+        return x.copy() if copy else x
+    try:
+        arr = np.asarray(x)
+        return arr.copy() if copy else arr
+    except Exception:
+        pass
+
+    if hasattr(x, "detach") and hasattr(x, "cpu") and hasattr(x, "numpy"):
+        arr = x.detach().cpu().numpy()
+        return arr.copy() if copy else arr
+
+    if hasattr(x, "numpy"):
+        arr = x.numpy()
+        return arr.copy() if copy else arr
+
+    return np.array(x, copy=copy)
 
 
 def extract_tril(matrix):
@@ -224,8 +243,7 @@ def estimate_MI_interconcept(
     n_samples = c.shape[0]
     if n_concepts is None:
         n_concepts = c.shape[1]
-    if type(c) == torch.Tensor:
-        c = c.detach().clone().numpy()
+    c = to_numpy(c)
     c = c.reshape(n_samples, n_concepts, -1)
 
     if isinteger(c):
@@ -329,10 +347,8 @@ def estimate_MI_concepts_task(c, y, n_concepts=None, n_neighbors=3, normalise=Tr
     n_samples = c.shape[0]
     if n_concepts is None:
         n_concepts = c.shape[1]
-    if type(c) == torch.Tensor:
-        c = c.detach().clone().numpy()
-    if type(y) == torch.Tensor:
-        y = y.detach().clone().numpy()
+    y = to_numpy(y)
+    c = to_numpy(c)
     c = c.reshape(n_samples, n_concepts, -1)
 
     # We assume y is always integer:
@@ -428,10 +444,8 @@ def estimate_MI_two_concept_repr(
     n_samples = c_1.shape[0]
     if n_concepts is None:
         n_concepts = c_1.shape[1]
-    if type(c_1) == torch.Tensor:
-        c_1 = c_1.detach().clone().numpy()
-    if type(c_2) == torch.Tensor:
-        c_2 = c_2.detach().clone().numpy()
+    c_1 = to_numpy(c_1)
+    c_2 = to_numpy(c_2)
     c_1 = c_1.reshape(n_samples, n_concepts, -1)
     c_2 = c_2.reshape(n_samples, n_concepts, -1)
 
